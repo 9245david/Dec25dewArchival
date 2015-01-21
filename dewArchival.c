@@ -6,7 +6,7 @@
  */
 //#include "test_incline.h"
 #include "aa.h"
-int main()
+int mainhh()
 /*
  datanode与namenode通信模块，端口6000
  一/ datanode to namenode
@@ -29,7 +29,9 @@ int main()
 
  */
 {
-	test();
-	test();
+	//test();
+//	test();
+	printf("length is %d",strlen("hello"));
+	return 0;
 	}
 
