@@ -45,6 +45,7 @@ nFeedback g_nodeFeedback[DATANODE_NUMBER];//节点号与节点反馈信息
 int g_feedbackVersion[DATANODE_NUMBER] = {0};
 bool ALL_DATANODE_CONNECTED = false;
 struct timeval starttime;
+extern char *DatanodeTask[DATANODE_NUMBER];
 int NamenodeControlServer()
 {
 	int listenfd;
@@ -188,24 +189,32 @@ void ProcessDatanodeState(char * buff, long length, int connfd)
 	assert(i < DATANODE_NUMBER);
 	memcpy(&(g_nodeFeedback[i]), buff, length);
 	g_feedbackVersion[i]++ ;//所有feedback 的版本必须一致
-	VersionUpdated();
+	//VersionUpdated();
 
 	return ;
 	}
 void SendTaskToDatanode(int connfd)
 //所有节点的任务信息生成之后，每个节点的任务（没有任务的接受空任务）,每个节点连接对应一个节点
 /*
+ * 需要ArchivalManager.c将任务已经生成才可以 char *DatanodeTask[DATANODE_NUMBER];
  * 	此处留有疑问，可不可以设计为只发送任务给有任务的节点，反馈信息也是只接收对应节点的反馈信息，
  *	这样对于feedback的同步g_feedbackVersion的判断机制也需要重新设计
  */
 {
-
+	int taskLength = 0;
+	int nodeID = 0;
+	nodeID = GetNodeIDFromConnfd(connfd);
+	assert(nodeID < 0 || nodeID >= DATANODE_NUMBER);
+	taskLength = *(int *)(DatanodeTask[nodeID]);
+	taskLength += sizeof(int);
+	DataTransportWrite(connfd, DatanodeTask[nodeID], taskLength);
 	return ;
 	}
 
 int TaskSendFinished(int connfd)
 //检查connfd对应的datanode的所有归档任务是否完成，如果完成，就返回1;否则返回0
 {
+
 	return 0;
 
 	}
@@ -218,11 +227,24 @@ bool VersionUpdated()
 {
 	int i = 0;
 	int j = 0;
-	j = g_nodeRegist[0];
+	j = g_feedbackVersion[0];
 	for(i = 1; i < DATANODE_NUMBER; i++)
 	{
-		if(j != g_nodeRegist[i])return false;
+		if(j != g_feedbackVersion[i])return false;
 	}
 	return true;
+
+	}
+
+int GetNodeIDFromConnfd(int connfd)
+//根据连接套接字得到节点号
+{
+	int i = 0;
+	for(i=0; i< DATANODE_NUMBER; i++)
+	{
+		if (g_nodeConnfd[i] == connfd)return i;
+	}
+	assert(i == DATANODE_NUMBER);
+	return -1;
 
 	}

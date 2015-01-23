@@ -40,7 +40,7 @@ typedef struct taskBlock{
 	unsigned char destIP[IP_LENGTH];
 		//目的ＩＰ地址，
 
-};
+}nTaskBlock,*pTaskBlock;
 
 typedef struct transportBlock{
 	unsigned int blockType;
@@ -61,7 +61,7 @@ typedef struct transportBlock{
 	//实际传输时的块大小，可能为暂定1MB,1024*1024 Byte，为可调整参数
 
 	//此结构体中是否应该有一个char blockData[transportSize];存储数据，但是C不允许定义变长数组
-};
+}nTransportBlock,*pTransportBlock;
 
 
 #endif /* BLOCKSTRUCT_H_ */

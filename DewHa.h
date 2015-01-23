@@ -13,8 +13,14 @@
 #include<string.h>
 #include "time.h"
 #include "dew_list.h"
+#include "stdbool.h"
 #define RACK_NODE 6 //机架节点数,同时也是冗余码的K
 #define RACK_NUM 3 //机架数,同时也是副本数
+
+#ifndef DATANODE_NUMBER
+#define DATANODE_NUMBER 18
+#endif
+
 #define BLK_SIZE 64*1024*1024UL //数据块大小
 #define NODE_BLKNUM 10000 //单节点数据块个数
 
@@ -70,5 +76,8 @@ int least_blk(list_head* strp_lay_head);
 int print_clusterAchival();
 int print_blk_invert();
 int print_double_circular(list_head* strp_lay_head);//打印双向循环链表
+
+//下面为新添加的内容
+bool VersionUpdated();
 
 #endif /* DEWHA_H_ */
