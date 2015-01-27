@@ -80,7 +80,7 @@ long DataTransportWrite(int sock_fd,char * buffer,long length)
         assert(totalsize == length);
         return totalsize;
 } 
-
+/*
 char * ExchangeStructToString(void * p_struct,size_t struct_length)
 {
 	char * p_string = (char*)malloc(struct_length*sizeof(char));
@@ -89,3 +89,4 @@ char * ExchangeStructToString(void * p_struct,size_t struct_length)
     memset(p_string,0,struct_length);
 	}
 
+*/

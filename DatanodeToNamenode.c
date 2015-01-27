@@ -1,6 +1,9 @@
 #include "Socket_connect_read_write.h"
+#include "DatanodeToNamenode.h"
+#include "BlockStruct.h"
 // oneTasktime 没有设置，FeedbackDToN完全没有填充任何内容
 extern PNamenodeID  PnamenodeID;
+extern void *ProcessChunkTask(void *argv);
 //extern char * DtoNbuffer ;
 //extern long  DtoNlength ;
 struct timeval oneTasktime;
@@ -20,9 +23,7 @@ typedef struct RegistAndTaskFeedback{
 	int finishedTask ; //在预想时间内完成的数据块的个数
 	int finishedTime ; //如果完成了，提前完成所花费的时间
 }nFeedback,*pFeedback;
-int TaskRecvFinished(char * localIPaddress);
-void * ProcessTime(void * taskTime);
-void ProcessTask(char *recvTaskBuff,int recv);//将任务抛给任务处理模块
+
 void * DatanodeToNamenode(void * arg)
 {
 	int sock_DtoN;
@@ -33,6 +34,7 @@ void * DatanodeToNamenode(void * arg)
 	return NULL;
 
 	}
+
 int DatanodeRegistOnNamenode(void)
 //连接namenode节点，在namenode上注册本datanode,主要是将ip与连接套接字一一对应
 //如果想写的更全面，应该还有本地所有数据块的id注册在namenode上，本次暂不实现该功能，工作量略大，先实现框架
@@ -60,13 +62,13 @@ int DatanodeControlwithNamenode(int sock_DtoN)
 	pFeedback FeedbackDToN = NULL ;
 	long length = sizeof(nFeedback);
 	long recv = 0;
-	long send = 0;
+	//long send = 0;
 	long task_length = 0;
 	char recvTaskBuff[DATA_NAME_MAXLENGTH];
 	int rt = 0;
 	pthread_t datanodeTime;
 	assert(sock_DtoN > 0);
-	if(DataTransportWrite(sock_DtoN, FeedbackDToN, length) != length)
+	if(DataTransportWrite(sock_DtoN, (char*)FeedbackDToN, length) != length)
 		{
 			printf(" write data to namenode error\n");
 			close(sock_DtoN);
@@ -85,7 +87,7 @@ int DatanodeControlwithNamenode(int sock_DtoN)
 	{
 		recv = DataTransportRead(sock_DtoN,recvTaskBuff,sizeof(long));//首先接收数据长度参数
 		    	task_length = *(long *)recvTaskBuff;
-		    	DataTransportRead(sock_DtoN,recvTaskBuff,task_length);
+		    	//DataTransportRead(sock_DtoN,recvTaskBuff,task_length);
 		recv = DataTransportRead(sock_DtoN,recvTaskBuff,task_length);
 		    	//接手namenode发送过来的任务
 		    		if(recv<0)
@@ -96,8 +98,8 @@ int DatanodeControlwithNamenode(int sock_DtoN)
 		    		}
 		ProcessTask(recvTaskBuff,recv);//将任务抛给任务处理模块
 		//如果是最后一次任务，即空任务，此时ProcessTask函数会将TaskRecvFinished设置为1
-		while(sendFeedback == false)NULL;//时间到了发送任务反馈给namenode
-		DataTransportWrite(sock_DtoN, FeedbackDToN, length);
+		while(sendFeedback == false);//时间到了发送任务反馈给namenode
+		DataTransportWrite(sock_DtoN, (char*)FeedbackDToN, length);
 		pthread_mutex_lock(&lockFeedback);
 		assert(sendFeedback == true);
 		sendFeedback = false;
@@ -147,3 +149,29 @@ void * ProcessTime(void * taskTime)
 
 	return NULL;
 	}
+
+void ProcessTask(char *recvTaskBuff,long recv)
+{
+	int TaskNum = 0;
+	int i = 0;
+	pthread_t * pthread_num = NULL;
+	int rt = 0;
+	pTaskBlock pChunkTask = NULL;
+	assert(recv % sizeof(nTaskBlock) == 0);
+	TaskNum = recv / sizeof(nTaskBlock);
+	if(TaskNum == 0)
+	{
+	//	处理没有任务的情况
+	}
+	pthread_num = (pthread_t *)malloc(TaskNum * sizeof(pthread_t));
+	assert(pthread_num == NULL);
+	for(i = 0; i< TaskNum; i++)
+	{//此处应该是并行创建处理单个条带任务的线程
+
+		pChunkTask = (pTaskBlock)(recvTaskBuff + i*sizeof(nTaskBlock));
+		rt = pthread_create(pthread_num, NULL, &ProcessChunkTask, (void*)pChunkTask);
+		assert(0 != rt);
+		pthread_num ++;
+	}
+}
+

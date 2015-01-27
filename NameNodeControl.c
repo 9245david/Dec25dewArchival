@@ -201,12 +201,12 @@ void SendTaskToDatanode(int connfd)
  *	这样对于feedback的同步g_feedbackVersion的判断机制也需要重新设计
  */
 {
-	int taskLength = 0;
+	long taskLength = 0;
 	int nodeID = 0;
 	nodeID = GetNodeIDFromConnfd(connfd);
 	assert(nodeID < 0 || nodeID >= DATANODE_NUMBER);
-	taskLength = *(int *)(DatanodeTask[nodeID]);
-	taskLength += sizeof(int);
+	taskLength = *(long *)(DatanodeTask[nodeID]);
+	taskLength += sizeof(long);
 	DataTransportWrite(connfd, DatanodeTask[nodeID], taskLength);
 	return ;
 	}
@@ -223,18 +223,7 @@ void WriteTaskFeedbackLog(int connfd,char *recvbuff,unsigned long length)
 
 	return ;
 	}
-bool VersionUpdated()
-{
-	int i = 0;
-	int j = 0;
-	j = g_feedbackVersion[0];
-	for(i = 1; i < DATANODE_NUMBER; i++)
-	{
-		if(j != g_feedbackVersion[i])return false;
-	}
-	return true;
 
-	}
 
 int GetNodeIDFromConnfd(int connfd)
 //根据连接套接字得到节点号

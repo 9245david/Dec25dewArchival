@@ -26,7 +26,7 @@ extern int g_feedbackVersion[DATANODE_NUMBER];
 char * DatanodeTask[DATANODE_NUMBER];
 void ProvideTask()
 //利用反馈得到的g_nodeFeedback[DATANODE_NUMBER]信息生成每个节点的任务列表
-//每一个datanode有一个人任务列表，列表是一长串字符串，字符串的第一个int表示该任务列表的长度，是sizeof(nTaskBlock)的整数倍
+//每一个datanode有一个人任务列表，列表是一长串字符串，字符串的第一个long表示该任务列表的长度，是sizeof(nTaskBlock)的整数倍
 //
 {
 	while(VersionUpdated() == false);
