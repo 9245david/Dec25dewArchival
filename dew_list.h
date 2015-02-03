@@ -1,6 +1,9 @@
 #include<stdio.h>
 /********8
-需要补充删除头节点怎么办
+*需要补充删除头节点怎么办
+*Linux 对LIST_POISON1,LIST_POISON2的解释说明内核中解释：
+*    These are non-NULL pointers that will result in page faults under normal circumstances,
+* used to verify that nobody uses  non-initialized list entries.
 ************/
 #ifndef DEW_LIST_H_
 #define DEW_LIST_H_

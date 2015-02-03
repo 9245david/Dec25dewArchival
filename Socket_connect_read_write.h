@@ -20,7 +20,7 @@ double work_percent;//allocated job has finished ** percent
 typedef struct NamenodeID{
 char *Namenode_ADDR;
 int NameToDataPort;
-}NamenodeID,*PNamenodeID;
+}NamenodeID,*PNamenodeID,ServerNodeID,*pServerNodeID;
 PNamenodeID  PnamenodeID;
 int ClientConnectToServer(PNamenodeID arg);
 long DataTransportRead(int sock_fd,char * buffer,long length);

@@ -30,5 +30,5 @@ int TaskSendFinished(int connfd);
 void WriteTaskFeedbackLog(int connfd, char *recvbuff, unsigned long length);
 void NodeRegist(int nodeConnfd, char *nodeIP, int nodeNum);
 int GetNodeIDFromConnfd(int connfd);
-bool VersionUpdated();
+//bool VersionUpdated();
 #endif /* NAME_NODE_CONTROL_H_ */

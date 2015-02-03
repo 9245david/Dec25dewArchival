@@ -4,6 +4,7 @@
 // oneTasktime 没有设置，FeedbackDToN完全没有填充任何内容
 extern PNamenodeID  PnamenodeID;
 extern void *ProcessChunkTask(void *argv);
+extern pthread_mutex_t g_memoryLock;
 //extern char * DtoNbuffer ;
 //extern long  DtoNlength ;
 struct timeval oneTasktime;
@@ -165,6 +166,7 @@ void ProcessTask(char *recvTaskBuff,long recv)
 	}
 	pthread_num = (pthread_t *)malloc(TaskNum * sizeof(pthread_t));
 	assert(pthread_num == NULL);
+	pthread_mutex_init(&g_memoryLock,NULL);
 	for(i = 0; i< TaskNum; i++)
 	{//此处应该是并行创建处理单个条带任务的线程
 
