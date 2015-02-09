@@ -134,12 +134,15 @@ int handle_connect(int listen_sock)//返回0正常，返回其他值，失败
 {
 		int * Pconnfd;
 		socklen_t len;
+		int i;
 		struct sockaddr_in cliaddr;
-		pthread_t  pthread_do;
+		pthread_t  *pthread_node_num = NULL;
 		int rt;
 		len = sizeof(cliaddr);
 		int nodenum = DATANODE_NUMBER;
-		while(nodenum--)//等待所有datanode连接
+		pthread_node_num = (pthread_t*)malloc(nodenum*sizeof(pthread_t));
+		assert(pthread_node_num !=NULL);
+		while((nodenum--)>=0)//等待所有datanode连接
 		{
 			Pconnfd = (int*)malloc(sizeof(int));
 			*Pconnfd = accept(listen_sock,(struct sockaddr*)&cliaddr,&len);
@@ -148,7 +151,8 @@ int handle_connect(int listen_sock)//返回0正常，返回其他值，失败
 			//注册,连接套接字*Pconnfd与节点号以及节点iｐ的对应关系，在这之前必须保证已经有iｐ和节点号的对应关系
 			g_nodeRegist ++;
 			NodeRegist(*Pconnfd,inet_ntoa(cliaddr.sin_addr),g_nodeRegist);
-			rt = pthread_create(&pthread_do,NULL,&handle_request,(void*)Pconnfd);
+			rt = pthread_create(pthread_node_num+(DATANODE_NUMBER-nodenum-1),NULL,&handle_request,(void*)Pconnfd);
+
 			if(0 != rt)
 					{
 					printf("pthread_create error\n");
@@ -158,6 +162,10 @@ int handle_connect(int listen_sock)//返回0正常，返回其他值，失败
 		ALL_DATANODE_CONNECTED = true;//所有连接已经建立
 //		close(listen_sock);
 		gettimeofday(&starttime,NULL);
+		for(i=0;i<DATANODE_NUMBER;i++)
+		{
+			pthread_join(*(pthread_node_num+i),NULL);
+		}
 		return 0;
 	}
 void NodeRegist(int nodeConnfd,char *nodeIP,int nodeNum)

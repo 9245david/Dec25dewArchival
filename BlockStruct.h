@@ -18,9 +18,9 @@
 
 #ifndef BLOCKSTRUCT_H_
 #define BLOCKSTRUCT_H_
-
-#define BUFF_SIZE 8*1024*1024UL//内存片大小8M
-#define BUFF_PICE_SIZE 1024*1024UL//每次传输的数据大小1M
+#define BLOCK_SIZE (64*1024*1024UL)
+#define BUFF_SIZE (8*1024*1024UL)//内存片大小8M
+#define BUFF_PICE_SIZE (1024*1024UL)//每次传输的数据大小1M
 #define EREASURE_N 9 // 编码参数 RS（n,k）
 #define EREASURE_K 3 //码参数 RS（n,k）
 #define IP_LENGTH 15//192.168.0.111,长度会变化192.168.11.111

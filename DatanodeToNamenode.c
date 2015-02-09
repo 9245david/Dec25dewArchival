@@ -4,6 +4,7 @@
 // oneTasktime 没有设置，FeedbackDToN完全没有填充任何内容
 extern PNamenodeID  PnamenodeID;
 extern void *ProcessChunkTask(void *argv);
+extern void *DataToDataTaskServer(void *arg);
 extern pthread_mutex_t g_memoryLock;
 //extern char * DtoNbuffer ;
 //extern long  DtoNlength ;
@@ -28,10 +29,18 @@ typedef struct RegistAndTaskFeedback{
 void * DatanodeToNamenode(void * arg)
 {
 	int sock_DtoN;
+	int rt = 0;
+	pthread_t pthread_server;
 	pthread_mutex_init(&lockFeedback,NULL);
+	pthread_mutex_init(&g_memoryLock,NULL);
+	pthread_mutex_init(&g_ServerLock);
+	pthread_mutex_init(&g_FreeClientLock);
 	sock_DtoN = DatanodeRegistOnNamenode();//注册namenode
 	assert(sock_DtoN > -1);
+	rt = pthread_create(&pthread_server,NULL,&DataToDataTaskServer,(void*)NULL);//响应连接
+		assert(0 != rt);
 	DatanodeControlwithNamenode(sock_DtoN);//任务信息的交流，以及时间控制
+	pthread_join(&pthread_server,NULL);
 	return NULL;
 
 	}
@@ -107,6 +116,7 @@ int DatanodeControlwithNamenode(int sock_DtoN)
 		pthread_mutex_unlock(&lockFeedback);
 
 	}
+
 	return 1;
 	}
 
@@ -155,7 +165,8 @@ void ProcessTask(char *recvTaskBuff,long recv)
 {
 	int TaskNum = 0;
 	int i = 0;
-	pthread_t * pthread_num = NULL;
+	pthread_t * pthread_task_num = NULL;
+
 	int rt = 0;
 	pTaskBlock pChunkTask = NULL;
 	assert(recv % sizeof(nTaskBlock) == 0);
@@ -164,16 +175,17 @@ void ProcessTask(char *recvTaskBuff,long recv)
 	{
 	//	处理没有任务的情况
 	}
-	pthread_num = (pthread_t *)malloc(TaskNum * sizeof(pthread_t));
-	assert(pthread_num == NULL);
-	pthread_mutex_init(&g_memoryLock,NULL);
+	pthread_task_num = (pthread_t *)malloc(TaskNum * sizeof(pthread_t));
+	assert(pthread_task_num == NULL);
+
 	for(i = 0; i< TaskNum; i++)
 	{//此处应该是并行创建处理单个条带任务的线程
 
 		pChunkTask = (pTaskBlock)(recvTaskBuff + i*sizeof(nTaskBlock));
-		rt = pthread_create(pthread_num, NULL, &ProcessChunkTask, (void*)pChunkTask);
+		rt = pthread_create(pthread_task_num, NULL, &ProcessChunkTask, (void*)pChunkTask);
 		assert(0 != rt);
-		pthread_num ++;
+		pthread_task_num ++;
 	}
+
 }
 
