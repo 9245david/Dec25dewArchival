@@ -28,6 +28,8 @@ extern nFeedback g_nodeFeedback[DATANODE_NUMBER];
 extern int g_feedbackVersion[DATANODE_NUMBER];
 unsigned int weight[DATANODE_NUMBER];
 char * DatanodeTask[DATANODE_NUMBER];
+int g_TaskStartNum ;//全局,每次任务开始的第一个块
+int g_versionNum = 1 ;
 void ProvideTask()
 //利用反馈得到的g_nodeFeedback[DATANODE_NUMBER]信息生成每个节点的任务列表
 //每一个datanode有一个人任务列表，列表是一长串字符串，字符串的第一个long表示该任务列表的长度，是sizeof(nTaskBlock)的整数倍
@@ -36,12 +38,31 @@ void ProvideTask()
 	int nodeNum = DATANODE_NUMBER;
 	int i=0;
 	while(VersionUpdated() == false);
-	for(i=0;i<nodeNum;i++)
+	if(VersionUpdated()==1)//第一次接收到反馈，即所有节点初始化过程
 	{
-		weight[i] = g_nodeFeedback[i].availableBandwidth * TASK_TIME / BLOCK_SIZE;
-
+		for(i=0;i<nodeNum;i++)
+		{
+			weight[i] = g_nodeFeedback[i].availableBandwidth * TASK_TIME / BLOCK_SIZE;
+		}
 	}
-
+	else{//之后的反馈过程
+		for(i=0;i<nodeNum;i++)
+		{
+			if(g_nodeFeedback[i].allocatedTask == 0)//上一个回合并没有分配任务
+			{
+				weight[i] = g_nodeFeedback[i].availableBandwidth * TASK_TIME / BLOCK_SIZE;
+			}
+			else if(g_nodeFeedback[i].finishedOrNot == 1)//任务已经完成，依据完成时间的比例得到下次发送的任务个数上限
+			{
+				weight[i] =	g_nodeFeedback[i].allocatedTask * TASK_TIME / g_nodeFeedback[i].finishedTime;
+			}
+			else//上一回合分配了任务，但是任务没有完成，只能以上次已经完成的块数作为本次的能力，能力减去为完成的工作
+			{
+				weight[i] = g_nodeFeedback[i].finishedTask*2 - g_nodeFeedback[i].allocatedTask;
+				if(weight[i]<0)weight[i]=0;
+			}
+		}
+	}
 
 }
 
@@ -49,11 +70,12 @@ bool VersionUpdated()
 {
 	int i = 0;
 	int j = 0;
-	j = g_feedbackVersion[0];
+	j = g_versionNum;
 	for(i = 1; i < DATANODE_NUMBER; i++)
 	{
 		if(j != g_feedbackVersion[i])return false;
 	}
+	g_versionNum++;
 	return true;
 
 	}
