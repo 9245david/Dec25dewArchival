@@ -3,7 +3,7 @@
 */
 #include "DewHa.h"
 
-int main(int argc, char **argv)
+int main1(int argc, char **argv)
 {
     int err=0;	
 	//printf("0x80 size %d\n",sizeof(0x80));

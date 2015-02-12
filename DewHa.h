@@ -21,7 +21,7 @@
 #define DATANODE_NUMBER 18
 #endif
 
-#define BLK_SIZE 64*1024*1024UL //数据块大小
+#define BLK_SIZE (64*1024*1024UL) //数据块大小
 #define NODE_BLKNUM 10000 //单节点数据块个数
 
 #define DEW_DEBUG 0

@@ -15,7 +15,7 @@
 
 //#include "aa.h"
 #include "Name_Node_Control.h"
-
+#include "DewHa.c"
 
 typedef struct RegistAndTaskFeedback{
 //	 信息1：发送本地剩余带宽，剩余空间大小
@@ -45,7 +45,24 @@ nFeedback g_nodeFeedback[DATANODE_NUMBER];//节点号与节点反馈信息
 int g_feedbackVersion[DATANODE_NUMBER] = {0};
 bool ALL_DATANODE_CONNECTED = false;
 struct timeval starttime;
+pthread_t  *pthread_node_num = NULL;//与多个节点的通信（任务信息）handle_request
 extern char *DatanodeTask[DATANODE_NUMBER];
+int main(int argc,char**argv)
+{
+	int i;
+	pthread_t pthread_provide_task;
+	int rt ;
+	NamenodeControlServer();
+	init_cluster();
+	Print_cluster_lay();
+	rt = pthread_create(&pthread_provide_task,NULL,&ProvideTask,(void*)NULL);
+	assert(rt==0);
+	for(i=0;i<DATANODE_NUMBER;i++)
+			{
+				pthread_join(*(pthread_node_num+i),NULL);
+			}
+	pthread_join(pthread_provide_task,NULL);
+	}
 int NamenodeControlServer()
 {
 	int listenfd;
@@ -136,7 +153,7 @@ int handle_connect(int listen_sock)//返回0正常，返回其他值，失败
 		socklen_t len;
 		int i;
 		struct sockaddr_in cliaddr;
-		pthread_t  *pthread_node_num = NULL;
+		//pthread_t  *pthread_node_num = NULL;
 		int rt;
 		len = sizeof(cliaddr);
 		int nodenum = DATANODE_NUMBER;
@@ -162,10 +179,7 @@ int handle_connect(int listen_sock)//返回0正常，返回其他值，失败
 		ALL_DATANODE_CONNECTED = true;//所有连接已经建立
 //		close(listen_sock);
 		gettimeofday(&starttime,NULL);
-		for(i=0;i<DATANODE_NUMBER;i++)
-		{
-			pthread_join(*(pthread_node_num+i),NULL);
-		}
+
 		return 0;
 	}
 void NodeRegist(int nodeConnfd,char *nodeIP,int nodeNum)
