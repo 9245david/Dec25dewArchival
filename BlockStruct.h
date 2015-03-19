@@ -21,12 +21,17 @@
 #define BLOCK_SIZE (64*1024*1024UL)
 #define BUFF_SIZE (8*1024*1024UL)//内存片大小8M
 #define BUFF_PICE_SIZE (1024*1024UL)//每次传输的数据大小1M
+#ifndef EREASURE_N
 #define EREASURE_N 9 // 编码参数 RS（n,k）
 #define EREASURE_K 3 //码参数 RS（n,k）
+#endif
+#ifndef IP_LENGTH
 #define IP_LENGTH 15//192.168.0.111,长度会变化192.168.11.111
+#endif
+
 typedef struct taskBlock{
 	int chunkID;
-	//条带号
+	//条带号从0开始
 	int localTaskBlock[EREASURE_N];
 		//本地需要读取的数据块，长度信息以数组中的结束标志int值自带
 		//数组未满部分以-1填充

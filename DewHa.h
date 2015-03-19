@@ -12,6 +12,7 @@
 #include<stdlib.h>
 #include<string.h>
 #include "time.h"
+#include <assert.h>
 #include "dew_list.h"
 #include "stdbool.h"
 #define RACK_NODE 6 //机架节点数,同时也是冗余码的K
@@ -19,6 +20,11 @@
 
 #ifndef DATANODE_NUMBER
 #define DATANODE_NUMBER 18
+#endif
+
+#ifndef EREASURE_N
+#define EREASURE_N 9 // 编码参数 RS（n,k）
+#define EREASURE_K 3 //码参数 RS（n,k）
 #endif
 
 #define BLK_SIZE (64*1024*1024UL) //数据块大小
@@ -79,5 +85,6 @@ int print_double_circular(list_head* strp_lay_head);//打印双向循环链表
 
 //下面为新添加的内容
 bool VersionUpdated();
-
+list_head *get_strp_lay(int task_start_block_num);//依据起始块号得到该条带的分布
+list_head *get_weight_strp_lay(list_head* strp_lay_head,int * weight);//依据权重值以及条带分布得到任务节点以及数据块的分布
 #endif /* DEWHA_H_ */

@@ -231,7 +231,7 @@ int Heter_arch_lay()//此处RACK_NODE 实际应为K值，正好都为6，代替
 							list_add_tail(&(strp_lay->listNode),strp_lay_head);//第一个节点
 							temp_strp_lay = (Pblk_inverted)malloc(sizeof(Nblk_inverted));
 							list_add_tail(&(temp_strp_lay->listblk),&(strp_lay->listblk));
-							get_blk_offset(local_blkID,node_id,temp_strp_lay);//向strp_lay所指向的节点中填充快号，节点号，偏移
+							get_blk_offset(local_blkID,node_id,temp_strp_lay);//向temp_strp_lay所指向的节点中填充快号，节点号，偏移
 							strp_lay->blk_nodeID = node_id;
 							
 						}
@@ -245,7 +245,6 @@ int Heter_arch_lay()//此处RACK_NODE 实际应为K值，正好都为6，代替
 								list_add_tail(&(temp_strp_lay->listblk),&(strp_lay->listblk));
 								get_blk_offset(local_blkID,node_id,temp_strp_lay);//向strp_lay所指向的节点中填充快号，节点号，偏移
 								strp_lay->blk_nodeID = node_id;
-								
 								 
 							}
 							else //非第一数据块
@@ -258,8 +257,7 @@ int Heter_arch_lay()//此处RACK_NODE 实际应为K值，正好都为6，代替
 						tempB++;
 						
 					}
-					
-				
+
 			    }
 				if(tempB!=0)tempN++;
 			}
@@ -270,6 +268,233 @@ int Heter_arch_lay()//此处RACK_NODE 实际应为K值，正好都为6，代替
 		printf("Heter_arch_lay sucess");
 		return 1;
 }
+
+list_head *get_strp_lay(int task_start_block_num)//依据起始块号得到该条带的分布.listNode,十字链表首节点无数据，只有节点号
+//task_start_block_num默认初始块号为0开始，但是local_blkID是1开始，此处写的有点纠结
+{
+	int tempN=0;//
+	int tempB=0;
+	//int strp_id = 0;//条带标识
+	int node_id = 0;//节点标识
+	int strp_innerID=0;//某个blkID在 其所在条带上对应的位置0~5
+	int local_blkID = 0;//本地变量，块标示
+	Pblk_inverted strp_lay=NULL;//条带分布十字链表
+	Pblk_inverted temp_strp_lay=NULL;
+	list_head *strp_lay_head=NULL;//条带分布十字链表头指针,内无数据
+	strp_lay_head  = (list_head *)malloc(sizeof(list_head));
+	init_list_head(strp_lay_head);//初始化条带分布链表头
+	tempN=0;
+	for(node_id=1;node_id<=RACK_NODE*RACK_NUM;node_id++)//遍历每个节点，判断每个块在不在
+		{
+			tempB=0;
+			for(strp_innerID=0;strp_innerID<RACK_NODE;strp_innerID++)//条带上的每个块
+				{
+					local_blkID = task_start_block_num+strp_innerID+1;//此处RACK_NODE 实际应为K值，正好为6
+					if(check_node_map(node_id,local_blkID)>0)
+					{
+						if(tempN==0&&tempB==0)//十字链表第一个节点，第一个数据块
+						{
+							strp_lay = (Pblk_inverted)malloc(sizeof(Nblk_inverted));
+							//strp_lay_head->next = &(strp_lay->listNode);
+							//init_list_head(&(strp_lay->listNode));//第一个节点
+							init_list_head(&(strp_lay->listblk));//子链表的头
+							list_add_tail(&(strp_lay->listNode),strp_lay_head);//第一个节点
+							temp_strp_lay = (Pblk_inverted)malloc(sizeof(Nblk_inverted));
+							list_add_tail(&(temp_strp_lay->listblk),&(strp_lay->listblk));
+							get_blk_offset(local_blkID,node_id,temp_strp_lay);//向temp_strp_lay所指向的节点中填充快号，节点号，偏移
+							strp_lay->blk_nodeID = node_id;
+
+						}
+						    else if(tempN!=0&&tempB==0)//十字链表非首数据节点，第一个数据块
+							{
+							 	strp_lay = (Pblk_inverted)malloc(sizeof(Nblk_inverted));
+								list_add_tail(&(strp_lay->listNode),strp_lay_head);//不是第一个节点，新增节点
+								init_list_head(&(strp_lay->listblk));//子链表的头
+
+								temp_strp_lay = (Pblk_inverted)malloc(sizeof(Nblk_inverted));
+								list_add_tail(&(temp_strp_lay->listblk),&(strp_lay->listblk));
+								get_blk_offset(local_blkID,node_id,temp_strp_lay);//向strp_lay所指向的节点中填充快号，节点号，偏移
+								strp_lay->blk_nodeID = node_id;
+
+							}
+							else //非第一数据块
+							{
+								 temp_strp_lay = (Pblk_inverted)malloc(sizeof(Nblk_inverted));
+								 list_add_tail(&(temp_strp_lay->listblk),&(strp_lay->listblk));//非第一数据块,循环的上一次添加数据一定是同一个数据结点，所以此处的strp_lay可用
+								 get_blk_offset(local_blkID,node_id,temp_strp_lay);//向strp_lay所指向的节点中填充快号，节点号，偏移
+							}
+
+						tempB++;
+
+					}
+
+			    }
+				if(tempB!=0)tempN++;
+			}
+	if(DEW_DEBUG==1)print_double_circular(strp_lay_head);
+	return strp_lay_head;
+}
+typedef struct nodeWeight{
+	int node_num;
+	int node_weight;
+	list_head *  p_node_in_strp;//节点在条带分布链表中的位置
+	struct nodeWeight *next;
+}N_node_weight,*P_node_weight;
+list_head *get_weight_strp_lay(list_head* strp_lay_head,int * weight)
+//依据三副本的条带数据块分布，和节点权重值表，得到对应的归档条带任务节点数据块分布。
+//假设nodeID 是由1开始的
+{
+	list_head * weight_strp_lay = NULL;
+	list_head * p_temp_node = NULL;
+	int i = 0;
+	int j = 0;
+	int flag = 0;// 冒泡过程有交换数据则为0,没有交换数据则为1,没有交换即退出
+	int nodeID = 0; //节点号
+	int node_num = 0;//包含了数据块的节点数目
+	int node_weight_tmp = 0;
+	int block_id = 0;//系统block_id 由1开始
+	int block_num = 0;//等于6时说明条带的任务列表生成完毕
+	int block_exist[EREASURE_N-EREASURE_K] = {0};//块已经存在对应的条带内偏移为1,否则为0
+	P_node_weight p_node_weight_head = NULL;//权值链表首节点
+	P_node_weight p_node_weight_tmp = NULL;//中间临时节点
+	P_node_weight p_node_weight_tail = NULL;//尾节点
+	P_node_weight p1,p2;//节点权重值冒泡排序
+
+	list_head * task_strp_lay_head = NULL;//任务链表条带分布
+	Pblk_inverted node_strp_block=NULL;//一个节点上的块链表
+	Pblk_inverted tmp_node_strp_block=NULL;
+	list_head * p_task_sort1,p_task_sort2,p_task_sort3;//用于生成的任务节点的排序
+	int length2,length3;//生成的任务节点的块个数，也用于排序
+	p_node_weight_head = (P_node_weight)malloc(sizeof(N_node_weight));
+	p_node_weight_head->next = NULL;
+	p_node_weight_tail = p_node_weight_head;
+	weight_strp_lay = (list_head*)malloc(sizeof(list_head));
+	init_list_head(weight_strp_lay);
+	p_temp_node = strp_lay_head->next;
+	while(p_temp_node != strp_lay_head)//将有数据的节点权重值选出来，存在
+	{
+		nodeID = container_of(p_temp_node,Nblk_inverted,listNode)->blk_nodeID;
+		p_node_weight_tmp = (P_node_weight)malloc(sizeof(N_node_weight));
+		p_node_weight_tmp->node_num = nodeID;
+		p_node_weight_tmp->node_weight = weight[nodeID-1];
+		p_node_weight_tmp->p_node_in_strp = &(container_of(p_temp_node,Nblk_inverted,listNode)->listblk);
+		p_node_weight_tmp->next = NULL;
+
+		p_node_weight_tail->next = p_node_weight_tmp;
+		p_node_weight_tail = p_node_weight_tail->next;
+
+		node_num++;
+		p_temp_node = p_temp_node->next;
+
+	}
+	//按权重值由大到小排序,冒泡排序
+	for(i=node_num;i>1;i--)
+	{
+		flag = 1;//默认无交换，循环退出
+		p1 = p_node_weight_head->next;
+		p2 = p1->next;
+		if(node_num == 1)break;
+
+		for(j=0;j<i-1;j++)
+		{
+			if(p1->node_weight < p2->node_weight)
+			{
+				flag = 0;
+				nodeID = p1->node_num;
+				p1->node_num = p2->node_num;
+				p2->node_num = nodeID;
+
+				node_weight_tmp = p1->node_weight;
+				p1->node_weight = p2->node_weight;
+				p2->node_weight = node_weight_tmp;
+
+				p_temp_node = p1->p_node_in_strp;
+				p1->p_node_in_strp = p2->p_node_in_strp;
+				p2->p_node_in_strp = p_temp_node;
+
+			}
+			p1 = p1->next;
+			p2 = p2->next;
+		}
+		if(flag == 1)break;
+	}
+	//权重值和分布得到任务
+	init_list_head(task_strp_lay_head);//初始化任务链表头
+	p1 = p_node_weight_head->next;
+	while(block_num != (EREASURE_N-EREASURE_K))
+	{
+		//p1 = p_node_weight_head->next;
+		//assert(p1 != NULL);//权值节点遍历一遍之后数据还没有找全
+		if(p1 == NULL)return NULL;//权值节点遍历一遍之后数据还没有找全,即任务的分配结束
+		node_weight_tmp = p1->node_weight;
+		nodeID = p1->node_num;
+		//p_node_weight_head->next = p1->next;
+		p_temp_node = p1->p_node_in_strp;
+	//free(p1);
+
+	node_strp_block = (Pblk_inverted)malloc(sizeof(Nblk_inverted));
+	list_add_tail(&(node_strp_block->listNode),task_strp_lay_head);
+	node_strp_block->blk_nodeID = nodeID;
+	init_list_head(&(node_strp_block->listblk));
+	while((p_temp_node->next != p1->p_node_in_strp)&&(node_weight_tmp > 0))//权值还有，节点上的数据也还有,添加某个节点上的数据块
+	{
+		block_id = container_of(p_temp_node,Nblk_inverted,listblk)->blkID;
+		if(block_exist[(block_id-1)%(EREASURE_N-EREASURE_K)] != 1)
+		{
+			tmp_node_strp_block = (Pblk_inverted)malloc(sizeof(Nblk_inverted));
+			list_add_tail(&(tmp_node_strp_block->listblk),&(node_strp_block->listblk));
+			tmp_node_strp_block->blk_node_offset = container_of(p_temp_node,Nblk_inverted,listblk)->blk_node_offset;
+			tmp_node_strp_block->blkID = container_of(p_temp_node,Nblk_inverted,listblk)->blkID;
+			node_weight_tmp--;
+			block_exist[(block_id-1)%(EREASURE_N-EREASURE_K)] = 1;
+			block_num ++;
+		}
+
+		p_temp_node = p_temp_node->next;
+	}
+	p1 = p1->next;
+	}
+	//给节点权重值进行排序，降序排列
+	node_num  =0;
+	p_temp_node = task_strp_lay_head->next;
+	while(p_temp_node != task_strp_lay_head)
+	{
+		node_num ++;
+		p_temp_node = p_temp_node->next;
+	}
+	p_task_sort1 = p_task_sort2=p_task_sort3=NULL;
+	for(i = node_num; i>1; i--)//冒泡排序将该条带的任务数据块分布由数据块由多至少排列
+	{
+		p_task_sort1 = weight_strp_lay;
+		p_task_sort2 = p_task_sort1->next;
+		p_task_sort3 = p_task_sort2->next;
+		flag =1;//默认无交换，循环退出
+		for(j = 0; j < i-1; j++)
+		{
+			length2 = get_length(&(container_of(p_task_sort2,Nblk_inverted,listNode)->listblk));
+			length3 = get_length(&(container_of(p_task_sort2,Nblk_inverted,listNode)->listblk));
+			if(length2 < length3)
+			{
+				p_task_sort1->next = p_task_sort3;
+				p_task_sort2->next = p_task_sort3->next;
+				p_task_sort3->next = p_task_sort2;
+				p_task_sort3->prev = p_task_sort1;
+				p_task_sort2->prev = p_task_sort3;
+				p_task_sort2->next->prev = p_task_sort2;
+				flag = 0;
+			}
+			p_task_sort1 = p_task_sort1->next;
+			p_task_sort2 = p_task_sort1->next;
+			p_task_sort3 = p_task_sort2->next;
+			assert(p_task_sort3 != weight_strp_lay);
+		}
+		if(flag == 1)break;//没有交换产生
+	}
+
+
+	return weight_strp_lay;
+
+	}
 
 int get_blk_offset(int local_blkID,int node_id,Pblk_inverted strp_lay)//将数据块号，节点号，以及得到的节点偏移存在strp_lay指向的结构体中
 {
@@ -322,7 +547,7 @@ list_head *check_nodeInList(list_head *p_head_check,list_head *p_blk)
 }
 
 int get_length(list_head *p_head)
-//得到链表长度
+//得到链表长度,不算空表头
 {
 	int i;
 	list_head *p_temp_head=NULL;
