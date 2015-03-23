@@ -15,7 +15,9 @@
 #include "dew_list.h"
 #define DATANODE_PORT 6001
 #define  BACKLOG 20
-
+#ifndef DEW_DEBUG
+#define DEW_DEBUG 1
+#endif
 typedef struct buffDiscript{
 	char * buff;
 	int start;
@@ -57,6 +59,7 @@ pSingleBuff ApplyBuffFromServerConnection(unsigned int waitedBlockID);
 pConnect ApplyForClientConnection(pTaskBlock pChunkTask,int destNum);//依据目的ip地址索要连接
 pSingleBuff ApplyBuffFromLocalData(int localBlock);
 pSingleBuff AskForMemory();
+void SendBackMemory(pSingleBuff pBuffPice);
 void* DataToDataTaskServer(void*arg);
 void TraslateTaskToTransport(pTaskBlock pChunkTask,int destNum,pTransportBlock pChunkTransport);
 void TraslateTaskToServer(pTaskBlock pChunkTask,int destNum,pTransportBlock pChunkTransport);

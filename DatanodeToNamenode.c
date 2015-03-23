@@ -155,7 +155,9 @@ void * ProcessTime(void * taskTime)
 	while(TaskRecvFinished(localIPaddress) != 1)
 	{
 		sleep(oneTasktime.tv_sec);
-		while(true == sendFeedback)
+		//while(true != sendFeedback)//当时为什么会用while
+		aasert(sendFeedback == false);
+		if(true != sendFeedback)
 		{
 			pthread_mutex_lock(&lockFeedback);
 			sendFeedback = true;

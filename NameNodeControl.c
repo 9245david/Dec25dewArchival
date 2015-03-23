@@ -17,7 +17,7 @@
 #include "Name_Node_Control.h"
 
 
-int main(int argc,char**argv)
+int main3(int argc,char**argv)
 {
 	int i;
 	pthread_t pthread_provide_task;

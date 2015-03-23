@@ -87,6 +87,7 @@ void * ProcessChunkTask(void* argv)
 	pSingleBuff * pLocalBuff = NULL;
 	list_head * pSearch = NULL;
 	connfdClient = (pConnect*)malloc((pChunkTask->destIPNum) * sizeof(pConnect));
+	//需要连接的服务端个数
 	assert(connfdClient != NULL);
 	localBlock = pChunkTask -> localTaskBlock;
 	while(*(localBlock+localNum) != -1)
@@ -125,18 +126,46 @@ void * ProcessChunkTask(void* argv)
 				connfdClient[i]->pBuffPice = *(pLocalBuff+i);
 				pthread_create(thread_client_num+i,NULL,&SendData,(void*)(*(connfdClient+i)));
 			//	thread_client_num++;
+
 			}
+
+			for(i=0;i<localNum;i++)
+			{
+				if(DEW_DEBUG==1)printf("等待回收内存\n");
+				while(connfdClient[i]->pBuffPice->length!=0)NULL;
+				SendBackMemory(connfdClient[i]->pBuffPice);
+			}
+
 	}
 	else if(pChunkTask->waitForBlock ==0)//需要编码，但是无需等待数据，只需要本地数据
 	{
-		for(i=0;i<localNum;i++)
+		//for(i=0;i<localNum;i++)
+		for(i=0;i<EREASURE_K;i++)
 			{
 				connfdClient[i]->pBuffPice = AskForMemory();
 				pthread_create(thread_client_num+i,NULL,&SendData,(void*)(*(connfdClient+i)));
 				//thread_client_num++;
 			}
+		assert(connfdServer ==NULL);
+		EncodeData(connfdServer,pLocalBuff,connfdClient,pChunkTask);//生产数据
+		//for(i=0;i<localNum;i++)
+		for(i=0; i<EREASURE_K; i++)//回收客户端
+		{
+			if(DEW_DEBUG==1)printf("等待回收内存\n");
+			while(connfdClient[i]->pBuffPice->length!=0)NULL;
+			SendBackMemory(connfdClient[i]->pBuffPice);
+		}
+		for(i=0;i<localNum;i++)//回收本地
+		{
+			if(DEW_DEBUG==1)printf("等待回收内存\n");
+			//while(connfdClient[i]->pBuffPice->length!=0)NULL;
+			SendBackMemory(connfdClient[i]->pBuffPice);
+		}
+
+
 	}
 	else if((pChunkTask->waitForBlock != 0) &&(pChunkTask->encode !=0))
+		//获取的匹配server端是带连接信息的已经申请好了内存，不用将该结构还给链表，只用将内存还给内存模块
 	{
 		pChunkTranport = (pTransportBlock)malloc(sizeof(nTransportBlock));
 		connfdServer = (pConnectServer*)malloc((pChunkTask->waitForBlock)*sizeof(pConnectServer));
@@ -161,6 +190,22 @@ void * ProcessChunkTask(void* argv)
 			//thread_client_num++;
 		}
 		EncodeData(connfdServer,pLocalBuff,connfdClient,pChunkTask);//生产数据
+		for(i=0; i<EREASURE_K; i++)//回收客户端
+		{
+			if(DEW_DEBUG==1)printf("等待回收内存\n");
+			while(connfdClient[i]->pBuffPice->length!=0)NULL;
+			SendBackMemory(connfdClient[i]->pBuffPice);
+		}
+		for(i=0;i<localNum;i++)//回收本地
+		{
+			if(DEW_DEBUG==1)printf("等待回收内存\n");
+			//while(pLocalBuff[i]->length!=0)NULL;
+			SendBackMemory(pLocalBuff[i]);
+		}
+		for(i=0;i<pChunkTask->waitForBlock;i++)//回收服务端
+		{
+			SendBackMemory(connfdServer[i]->pBuffPice);
+		}
 	}
 	else
 	{
@@ -183,7 +228,7 @@ pSingleBuff ApplyBuffFromServerConnection(unsigned int waitedBlockID)
 	}
 pConnect ApplyForClientConnection(pTaskBlock pChunkTask,int destNum)
 //依据目的ip地址索要连接，如果没有连接则建立连接
-//连接的
+//连接的缓存没有申请，
 {
 	int connfd=0;
 	char * destIP = pChunkTask->destIP[destNum];
@@ -246,6 +291,7 @@ pSingleBuff ApplyBuffFromClientConnection(unsigned char * destIP)
 	return NULL;
 	}
 void EncodeData(pConnectServer* connfdServer,pSingleBuff* pLocalBuff,pConnect* connfdClient,pTaskBlock pChunkTask)
+//connfdServer可以为空买，即不用等待数据
 {
 	int serverNum  = pChunkTask->waitForBlock;
 	int i =0;
@@ -266,6 +312,7 @@ void EncodeData(pConnectServer* connfdServer,pSingleBuff* pLocalBuff,pConnect* c
 		}
 		for(i=0;i<serverNum;i++)
 		{
+			assert(connfdServer!=NULL);
 			while((*(connfdServer+i))->pBuffPice->length==0){};
 		}
 		//编码数据块操作，暂时省略，就是将k带入计算
@@ -278,6 +325,7 @@ void EncodeData(pConnectServer* connfdServer,pSingleBuff* pLocalBuff,pConnect* c
 		}
 		for(i=0;i<serverNum;i++)
 		{
+			assert(connfdServer!=NULL);
 			(*(connfdServer+i))->pBuffPice->start = (*(connfdServer+i))->pBuffPice->start +1;
 			pthread_mutex_lock(&((*(connfdServer+i))->pBuffPice->buffLock));
 			(*(connfdServer+i))->pBuffPice->length = (*(connfdServer+i))->pBuffPice->length -1;
@@ -295,6 +343,9 @@ void EncodeData(pConnectServer* connfdServer,pSingleBuff* pLocalBuff,pConnect* c
 
 	}
 pSingleBuff AskForMemory()//向内存模块申请内存，需要加锁因为不同的访问必须是互斥的
+//g_pFreeMemoryList 为空闲内存模块链表，如果是第一次就申请20个内存片，以双向循环链表的方式存在g_pFreeMemoryList 为首节点的
+//双向链表中，如果空闲链表为空，则申请内存是增加一个内存片在链表尾部。分配内存就是将链表的尾节点对应的内存分出去，然后从链表尾部删除
+//分配了之后再初始化一些参数，这样在归还缓存时便不需要初始化了，因为每次使用之前就会对其进行初始化
 {
 	int baseNum = 20;
 	int i =0;
@@ -317,10 +368,11 @@ pSingleBuff AskForMemory()//向内存模块申请内存，需要加锁因为不�
 			tmpSingleBuff = (pSingleBuff)malloc(sizeof(nSingleBuff));
 			assert(tmpSingleBuff != NULL);
 			tmpSingleBuff -> buff = tmpBuff;
-			tmpSingleBuff -> buffSize = BUFF_SIZE;
-			tmpSingleBuff -> pice = BUFF_PICE_SIZE;
-			tmpSingleBuff -> start = 0;
-			tmpSingleBuff -> end = 0;//end < buffSize/pice;
+//			tmpSingleBuff -> buffSize = BUFF_SIZE;
+//			tmpSingleBuff -> pice = BUFF_PICE_SIZE;
+//			tmpSingleBuff -> start = 0;
+//			tmpSingleBuff -> end = 0;//end < buffSize/pice;
+//			tmpSingleBuff -> length = 0;
 			pthread_mutex_init(&(tmpSingleBuff->buffLock),NULL);
 			tmpMemory->pBuffPice = tmpSingleBuff;
 
@@ -338,15 +390,22 @@ pSingleBuff AskForMemory()//向内存模块申请内存，需要加锁因为不�
 		assert(tmpBuff ==NULL);
 		tmpSingleBuff = (pSingleBuff)malloc(sizeof(nSingleBuff));
 		assert(tmpSingleBuff != NULL);
-		tmpSingleBuff -> buff = tmpBuff;
-		tmpSingleBuff -> buffSize = BUFF_SIZE;
-		tmpSingleBuff -> pice = BUFF_PICE_SIZE;
-		tmpSingleBuff -> start = 0;
-		tmpSingleBuff -> end = 0;//end < buffSize/pice;
-		tmpSingleBuff -> length = 0;
+//		tmpSingleBuff -> buff = tmpBuff;
+//		tmpSingleBuff -> buffSize = BUFF_SIZE;
+//		tmpSingleBuff -> pice = BUFF_PICE_SIZE;
+//		tmpSingleBuff -> start = 0;
+//		tmpSingleBuff -> end = 0;//end < buffSize/pice;
+//		tmpSingleBuff -> length = 0;
+		pthread_mutex_init(&(tmpSingleBuff->buffLock),NULL);
+
 		tmpMemory->pBuffPice = tmpSingleBuff;
 	}
 	tmpMemory = container_of(g_pFreeMemoryList->listMemory.prev,nMemory,listMemory);
+	tmpSingleBuff -> buffSize = BUFF_SIZE;
+	tmpSingleBuff -> pice = BUFF_PICE_SIZE;
+	tmpSingleBuff -> start = 0;
+	tmpSingleBuff -> end = 0;//end < buffSize/pice;
+	tmpSingleBuff -> length = 0;
 	tmpSingleBuff = tmpMemory ->pBuffPice;
 	list_del(g_pFreeMemoryList->listMemory.prev);
 	pthread_mutex_unlock(&g_memoryLock);
@@ -541,12 +600,13 @@ void *handle_request(void * arg)
 	}
 	return NULL;
 	}
-void *SendData(void*arg)
+void *SendData(void*arg)//只是发送缓存，发送数据，发送完成之后需要解放占有的缓存空间
 {
 	pConnect connfdClient = (pConnect)arg;
 	int connfd = connfdClient->connfd;
 	pSingleBuff pBuffPice = connfdClient->pBuffPice;
 	long piceNum = (BLOCK_SIZE/BUFF_PICE_SIZE);
+	pthread_detach(pthread_self());
 	while((piceNum--)>=0)
 			{
 				while(pBuffPice->length ==0);
@@ -558,7 +618,8 @@ void *SendData(void*arg)
 				pthread_mutex_unlock(&(pBuffPice->buffLock));
 
 			}
-	return NULL;
+	pthread_exit(0);
+	//return NULL;
 	}
 void *ReadLocalData(void * arg)
 //并没有真正的读取本次盘数据
@@ -567,6 +628,7 @@ void *ReadLocalData(void * arg)
 	pLocalData p_tmpLocalData =NULL;
 	off_t offset = 0;
 	pSingleBuff pBuffPice = NULL;
+	pMemory tmpMemory = NULL;
 	long piceNum = (BLOCK_SIZE/BUFF_PICE_SIZE);
 	pthread_detach(pthread_self());
 	p_tmpLocalData = (pLocalData)arg;
@@ -585,6 +647,13 @@ void *ReadLocalData(void * arg)
 		//参数end，piceNum,offset读取本地磁盘数据pBuffPice->buff
 		pBuffPice->end = (pBuffPice->end + 1)%(BUFF_SIZE/BUFF_PICE_SIZE);
 	}
+	//可选择在这里循环判断长度是否为0,为0就回收本地内存给链表,SendBackMemory调用函数即可，重复了
+//	while(pBuffPice->length !=0)NULL;
+//	tmpMemory = (pMemory)malloc(sizeof(nMemory));
+//	tmpMemory->pBuffPice = pBuffPice;
+//	pthread_mutex_lock(&g_memoryLock);
+//	list_add_tail(&(tmpMemory->listMemory),&(g_pFreeMemoryList->listMemory));
+//	pthread_mutex_unlock(&g_memoryLock);
 pthread_exit(0);
 	}
 off_t FindBlockOffset(int localBlock)
