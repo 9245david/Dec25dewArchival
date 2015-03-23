@@ -25,7 +25,12 @@ typedef struct RegistAndTaskFeedback{
 	int finishedTask ; //在预想时间内完成的数据块的个数
 	int finishedTime ; //如果完成了，提前完成所花费的时间
 }nFeedback,*pFeedback;
+int main(int argc,char** argv)
+{
 
+	DatanodeToNamenode(NULL);
+	return 0;
+	}
 void * DatanodeToNamenode(void * arg)
 {
 	int sock_DtoN;
@@ -33,14 +38,14 @@ void * DatanodeToNamenode(void * arg)
 	pthread_t pthread_server;
 	pthread_mutex_init(&lockFeedback,NULL);
 	pthread_mutex_init(&g_memoryLock,NULL);
-	pthread_mutex_init(&g_ServerLock);
-	pthread_mutex_init(&g_FreeClientLock);
+	//pthread_mutex_init(&g_ServerLock);
+	//pthread_mutex_init(&g_FreeClientLock);
 	sock_DtoN = DatanodeRegistOnNamenode();//注册namenode
 	assert(sock_DtoN > -1);
 	rt = pthread_create(&pthread_server,NULL,&DataToDataTaskServer,(void*)NULL);//响应连接
 		assert(0 != rt);
 	DatanodeControlwithNamenode(sock_DtoN);//任务信息的交流，以及时间控制
-	pthread_join(&pthread_server,NULL);
+	pthread_join(pthread_server,NULL);
 	return NULL;
 
 	}
@@ -95,10 +100,10 @@ int DatanodeControlwithNamenode(int sock_DtoN)
 	assert(0 != rt);
 	while (TaskRecvFinished(localIPaddress) != 1)
 	{
-		recv = DataTransportRead(sock_DtoN,recvTaskBuff,sizeof(long));//首先接收数据长度参数
-		    	task_length = *(long *)recvTaskBuff;
+		recv = DataTransportRead(sock_DtoN,recvTaskBuff,sizeof(int));//首先接收数据长度参数
+		    	task_length = *(int *)recvTaskBuff;
 		    	//DataTransportRead(sock_DtoN,recvTaskBuff,task_length);
-		recv = DataTransportRead(sock_DtoN,recvTaskBuff,task_length);
+		recv = DataTransportRead(sock_DtoN,recvTaskBuff,task_length * sizeof(nTaskBlock));
 		    	//接手namenode发送过来的任务
 		    		if(recv<0)
 		    		{

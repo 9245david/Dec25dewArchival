@@ -42,17 +42,17 @@ typedef struct block_lay{
 }Nblk_inverted,*Pblk_inverted;
 
 int cluster_lay[NODE_BLKNUM+1][RACK_NODE*RACK_NUM];//整体布局,0行为节点数据块实际存放个数
-
-char *Node_bit_map=NULL;
-//以节点为单位所有数据块分布位图,一个块对应一个bit,所有节点的位图，节点1开始，偏移0开始
-char *Rack_bit_map=NULL;
-//以机架为单位所有数据块分布位图，一个块对应两个bit，机架1开始，偏移0开始
-Pblk_inverted g_Pblk_invert = NULL;
-//对于所有已存在的数据块的位置反向索引，块标识1开始，偏移0开始
-list_head  g_PclusterAchival[RACK_NODE*RACK_NUM];
-//十八个节点的归档分布头节点
- int blk_id = 0;
-int single_node_mapLength=0;
+//
+//char *Node_bit_map=NULL;
+////以节点为单位所有数据块分布位图,一个块对应一个bit,所有节点的位图，节点1开始，偏移0开始
+//char *Rack_bit_map=NULL;
+////以机架为单位所有数据块分布位图，一个块对应两个bit，机架1开始，偏移0开始
+//Pblk_inverted g_Pblk_invert = NULL;
+////对于所有已存在的数据块的位置反向索引，块标识1开始，偏移0开始
+//list_head  g_PclusterAchival[RACK_NODE*RACK_NUM];
+////十八个节点的归档分布头节点
+// int blk_id = 0;
+//int single_node_mapLength=0;
 int check_node_map(int nodeNum,int blkID);
 //依据节点号(K=6时1~18)和块编号判断块是否存在该节点0,1
 

@@ -65,8 +65,8 @@ pConnect g_pUsedClientBuffList = NULL;//暂时不用上
 pConnectServer g_pServerBuffList = NULL;
 pMemory g_pFreeMemoryList = NULL;//所有的内存
 pthread_mutex_t g_memoryLock;
-pthread_mutex_t g_FreeClientLock;需要初始化
-pthread_mutex_t g_ServerLock;需要初始化
+pthread_mutex_t g_FreeClientLock;//需要初始化
+pthread_mutex_t g_ServerLock;//需要初始化
 void * ProcessChunkTask(void* argv)
 {
 	pTaskBlock pChunkTask = (pTaskBlock)argv;//某一个块的任务
@@ -79,7 +79,7 @@ void * ProcessChunkTask(void* argv)
 	int equal ;
 	pthread_t * thread_client_num =NULL;//客户端发送数据线程
 	pthread_t * thread_local_num = NULL;//读取本地数据线程
-	struct dataBuff chunkBuff;
+	//struct dataBuff chunkBuff;
 	pConnect *connfdClient = NULL;//任务中发送数据块
 	pConnectServer * connfdServer = NULL;//任务中的等待数据块
 	pLocalData  pLocalGroup = NULL;//任务中的本地数据
@@ -102,7 +102,7 @@ void * ProcessChunkTask(void* argv)
 			*(pLocalBuff+i) = AskForMemory();
 			//创建线程读取本地数据
 			(pLocalGroup+i)->pBuffPice = *(pLocalBuff+i);
-			(pLocalGroup+i)->localBlock = pChunkTask->waitedBlock[i];
+			(pLocalGroup+i)->localBlock = pChunkTask->localTaskBlock[i];
 			pthread_create(thread_local_num+i,NULL,&ReadLocalData,(void*)(pLocalGroup+i));
 
 		}
@@ -122,7 +122,7 @@ void * ProcessChunkTask(void* argv)
 			for(i=0;i<localNum;i++)
 			{
 					//	SendBackMemory(connfdClient[i].pBuffPice);
-				connfdClient[i].pBuffPice = *(pLocalBuff+i);
+				connfdClient[i]->pBuffPice = *(pLocalBuff+i);
 				pthread_create(thread_client_num+i,NULL,&SendData,(void*)(*(connfdClient+i)));
 			//	thread_client_num++;
 			}
@@ -131,7 +131,7 @@ void * ProcessChunkTask(void* argv)
 	{
 		for(i=0;i<localNum;i++)
 			{
-				connfdClient[i].pBuffPice = AskForMemory();
+				connfdClient[i]->pBuffPice = AskForMemory();
 				pthread_create(thread_client_num+i,NULL,&SendData,(void*)(*(connfdClient+i)));
 				//thread_client_num++;
 			}
@@ -156,7 +156,7 @@ void * ProcessChunkTask(void* argv)
 		}
 		for(i=0;i<localNum;i++)
 		{
-			connfdClient[i].pBuffPice = AskForMemory();
+			connfdClient[i]->pBuffPice = AskForMemory();
 			pthread_create(thread_client_num+i,NULL,&SendData,(void*)(*(connfdClient+i)));
 			//thread_client_num++;
 		}
@@ -186,7 +186,7 @@ pConnect ApplyForClientConnection(pTaskBlock pChunkTask,int destNum)
 //连接的
 {
 	int connfd=0;
-	char * destIP = pChunkTask.destIP[destNum];
+	char * destIP = pChunkTask->destIP[destNum];
 	pConnect tmpConnect =NULL;
 	list_head * pSearch = NULL;
 	pTransportBlock pChunkTransport =NULL;
@@ -286,10 +286,10 @@ void EncodeData(pConnectServer* connfdServer,pSingleBuff* pLocalBuff,pConnect* c
 		}
 		for(i=0;i<clientNum;i++)
 		{
-			connfdClient->pBuffPice->end = connfdClient->pBuffPice->end + 1;
-			pthread_mutex_lock(&(connfdClient->pBuffPice->buffLock));
-			connfdClient->pBuffPice->length = connfdClient->pBuffPice->length + 1;
-			pthread_mutex_unlock(&(connfdClient->pBuffPice->buffLock));
+			connfdClient[i]->pBuffPice->end = connfdClient[i]->pBuffPice->end + 1;
+			pthread_mutex_lock(&(connfdClient[i]->pBuffPice->buffLock));
+			connfdClient[i]->pBuffPice->length = connfdClient[i]->pBuffPice->length + 1;
+			pthread_mutex_unlock(&(connfdClient[i]->pBuffPice->buffLock));
 		}
 	}
 
@@ -464,6 +464,7 @@ int handle_connect(int listen_sock)//返回0正常，返回其他值，失败
 		pthread_t  pthread_do;
 		int rt;
 		len = sizeof(cliaddr);
+		pthread_mutex_init(&g_ServerLock,NULL);
 
 		while(1)//等待所有datanode连接
 		{
@@ -559,7 +560,7 @@ void *SendData(void*arg)
 			}
 	return NULL;
 	}
-void ReadLocalData(void * arg)
+void *ReadLocalData(void * arg)
 //并没有真正的读取本次盘数据
 {
 	int localBlock;
@@ -567,6 +568,7 @@ void ReadLocalData(void * arg)
 	off_t offset = 0;
 	pSingleBuff pBuffPice = NULL;
 	long piceNum = (BLOCK_SIZE/BUFF_PICE_SIZE);
+	pthread_detach(pthread_self());
 	p_tmpLocalData = (pLocalData)arg;
 	localBlock = p_tmpLocalData->localBlock;
 	 pBuffPice = p_tmpLocalData->pBuffPice;
@@ -575,17 +577,25 @@ void ReadLocalData(void * arg)
 	while((piceNum--)>=0)
 	{
 		while(pBuffPice->length == (BUFF_SIZE/BUFF_PICE_SIZE)){};//缓存已满
+		ReadDisk(offset,pBuffPice->buff+pBuffPice->length*BUFF_PICE_SIZE,BUFF_PICE_SIZE);
+
 		pthread_mutex_lock(&(pBuffPice->buffLock));
 		pBuffPice->length = pBuffPice->length +1;
 		pthread_mutex_unlock(&(pBuffPice->buffLock));
 		//参数end，piceNum,offset读取本地磁盘数据pBuffPice->buff
 		pBuffPice->end = (pBuffPice->end + 1)%(BUFF_SIZE/BUFF_PICE_SIZE);
 	}
-
+pthread_exit(0);
 	}
 off_t FindBlockOffset(int localBlock)
 //输入参数为数据块号，根据数据块号找到对应数据的偏移
 {
 	return 0;
 
+	}
+unsigned long ReadDisk( off_t offset, char * buff, unsigned long length)
+{
+	char * path;//每个节点都会有对应的/dev/sda
+
+	return BUFF_PICE_SIZE;
 	}

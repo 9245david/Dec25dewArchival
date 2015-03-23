@@ -3,6 +3,16 @@
 */
 #include "DewHa.h"
 
+char *Node_bit_map=NULL;
+//以节点为单位所有数据块分布位图,一个块对应一个bit,所有节点的位图，节点1开始，偏移0开始
+char *Rack_bit_map=NULL;
+//以机架为单位所有数据块分布位图，一个块对应两个bit，机架1开始，偏移0开始
+Pblk_inverted g_Pblk_invert = NULL;
+//对于所有已存在的数据块的位置反向索引，块标识1开始，偏移0开始
+list_head  g_PclusterAchival[RACK_NODE*RACK_NUM];
+//十八个节点的归档分布头节点
+ int blk_id = 0;
+int single_node_mapLength=0;
 int main1(int argc, char **argv)
 {
     int err=0;	
@@ -363,7 +373,7 @@ list_head *get_weight_strp_lay(list_head* strp_lay_head,int * weight)
 	list_head * task_strp_lay_head = NULL;//任务链表条带分布
 	Pblk_inverted node_strp_block=NULL;//一个节点上的块链表
 	Pblk_inverted tmp_node_strp_block=NULL;
-	list_head * p_task_sort1,p_task_sort2,p_task_sort3;//用于生成的任务节点的排序
+	list_head *p_task_sort1,*p_task_sort2,*p_task_sort3;//用于生成的任务节点的排序
 	int length2,length3;//生成的任务节点的块个数，也用于排序
 	p_node_weight_head = (P_node_weight)malloc(sizeof(N_node_weight));
 	p_node_weight_head->next = NULL;

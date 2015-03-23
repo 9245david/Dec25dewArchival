@@ -89,4 +89,5 @@ int g_TaskStartBlockNum ;//全局,每次任务开始的第一个块
 int g_versionNum = 1;
 void ProvideTaskAlgorithm(int * g_weight,pTaskHead g_pDatanodeTask);
 int ProvideTaskFinished();//生成任务结束,等于1结束，等于0未结束
+void *ProvideTask(void *arg);
 #endif /* NAME_NODE_CONTROL_H_ */

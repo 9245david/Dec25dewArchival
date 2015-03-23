@@ -51,7 +51,8 @@ typedef struct taskBlock{
 	  	//等待的Block只能是数据块或者校验块，不能二者混杂在一起
 		//如果是校验块，存放顺序依次为P1‘，P2’，……，Pk‘但是无法标记为哪些块生成的校验块，由传输端确定是哪些校验
 	unsigned int destIPNum;//一般情况下均为1,除了最终编码节点的目标ip为多个
-	unsigned char destIP[3][IP_LENGTH];
+//	unsigned char destIP[3][IP_LENGTH];
+	char destIP[EREASURE_K][IP_LENGTH];
 		//目的ＩＰ地址，字符串的形式存储带字符串结束符
 
 }nTaskBlock,*pTaskBlock;
