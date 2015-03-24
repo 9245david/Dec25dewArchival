@@ -1,6 +1,7 @@
 #include "Socket_connect_read_write.h"
 #include "DatanodeToNamenode.h"
 #include "BlockStruct.h"
+#include <assert.h>
 // oneTasktime 没有设置，FeedbackDToN完全没有填充任何内容
 extern PNamenodeID  PnamenodeID;
 extern void *ProcessChunkTask(void *argv);
@@ -27,7 +28,10 @@ typedef struct RegistAndTaskFeedback{
 }nFeedback,*pFeedback;
 int main(int argc,char** argv)
 {
-
+	PnamenodeID = (PNamenodeID)malloc(sizeof(NamenodeID));
+	assert(PnamenodeID != NULL);
+	PnamenodeID->NameToDataPort = DATA_TO_NAME_PORT;
+	PnamenodeID->Namenode_ADDR = "192.168.0.68";
 	DatanodeToNamenode(NULL);
 	return 0;
 	}
@@ -56,7 +60,13 @@ int DatanodeRegistOnNamenode(void)
 {
 	int sock_DtoN;
 	char namenodeAck[8]={};
+	struct sockaddr_in cliaddr;
+	socklen_t len;
 	sock_DtoN = ClientConnectToServer(PnamenodeID);
+	len = sizeof(struct sockaddr_in);
+	getsockname(sock_DtoN,(struct sockaddr*)&cliaddr,&len);
+	localIPaddress = inet_ntoa(cliaddr.sin_addr);
+	printf("local ip is %s\n",localIPaddress);
 	assert(sock_DtoN > -1);
 	if(DataTransportRead(sock_DtoN,namenodeAck,7)!=7)
 	{
@@ -83,6 +93,12 @@ int DatanodeControlwithNamenode(int sock_DtoN)
 	int rt = 0;
 	pthread_t datanodeTime;
 	assert(sock_DtoN > 0);
+	FeedbackDToN = (pFeedback)malloc(sizeof(nFeedback));
+	FeedbackDToN->allocatedTask = 0;
+	FeedbackDToN->availableBandwidth = 64;
+	FeedbackDToN->wholeBandwidth = 100;
+	FeedbackDToN->finishedOrNot =1;
+
 	if(DataTransportWrite(sock_DtoN, (char*)FeedbackDToN, length) != length)
 		{
 			printf(" write data to namenode error\n");
@@ -133,7 +149,7 @@ int TaskRecvFinished(char * localIPaddress)
 	//namenode仍然发生一次空任务，标志该节点的归档完全结束，故localIPaddress 参数可取消，
 	//不加这最后一次ProcessTime里面的while循环的结束条件就会有问题
 	assert(localIPaddress != NULL);
-	return 1;
+	return 0;
 	}
 
 void * ProcessTime(void * taskTime)
@@ -156,7 +172,7 @@ void * ProcessTime(void * taskTime)
 	{
 		sleep(oneTasktime.tv_sec);
 		//while(true != sendFeedback)//当时为什么会用while
-		aasert(sendFeedback == false);
+		assert(sendFeedback == false);
 		if(true != sendFeedback)
 		{
 			pthread_mutex_lock(&lockFeedback);

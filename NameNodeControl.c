@@ -15,9 +15,9 @@
 
 //#include "aa.h"
 #include "Name_Node_Control.h"
-
-
-int main3(int argc,char**argv)
+FILE* logFile = NULL;//打开一个已经存在的文件
+pthread_mutex_t logFileLock;
+int main(int argc,char**argv)
 {
 	int i;
 	pthread_t pthread_provide_task;
@@ -33,7 +33,8 @@ int main3(int argc,char**argv)
 				pthread_join(*(pthread_node_num+i),NULL);
 			}
 	pthread_join(pthread_provide_task,NULL);
-	}
+	fclose(logFile);
+}
 int NamenodeControlServer()
 {
 	int listenfd;
@@ -71,6 +72,7 @@ void *handle_request(void * arg)
 	char sendbuff[DATA_NAME_MAXLENGTH];
 	long recv,send;
 	long task_length = 0;
+
 	connfd = *((int*)arg);
 	free(arg);
 	if(DataTransportWrite(connfd,"welcome",7)!=7)
@@ -114,6 +116,7 @@ void *handle_request(void * arg)
     	ProcessDatanodeState(recvbuff, recv, connfd);//将反馈信息提交给归档管理器
 
     }
+
 	return NULL;
 	}
 
@@ -128,6 +131,9 @@ int handle_connect(int listen_sock)//返回0正常，返回其他值，失败
 		int rt;
 		len = sizeof(cliaddr);
 		int nodenum = DATANODE_NUMBER;
+		logFile = fopen("TaskFeedbackLog.log","w");
+		assert(logFile!=NULL);
+		pthread_mutex_init(&logFileLock,NULL);
 		pthread_node_num = (pthread_t*)malloc(nodenum*sizeof(pthread_t));
 		assert(pthread_node_num !=NULL);
 		while((nodenum--)>=0)//等待所有datanode连接
@@ -136,7 +142,7 @@ int handle_connect(int listen_sock)//返回0正常，返回其他值，失败
 			*Pconnfd = accept(listen_sock,(struct sockaddr*)&cliaddr,&len);
 			if (-1 != *Pconnfd)
 				printf("server: got connection from client %s \n",inet_ntoa(cliaddr.sin_addr));
-			//注册,连接套接字*Pconnfd与节点号以及节点iｐ的对应关系，在这之前必须保证已经有iｐ和节点号的对应关系
+			//注册,连接套接字*Pconnfd与节点号以及节点iｐ的对应关系，在这之前必须保证已经有iｐ和节点号的对应关系(不用，NodeRegist完成该功能)
 			g_nodeRegist ++;
 			NodeRegist(*Pconnfd,inet_ntoa(cliaddr.sin_addr),g_nodeRegist);
 			rt = pthread_create(pthread_node_num+(DATANODE_NUMBER-nodenum-1),NULL,&handle_request,(void*)Pconnfd);
@@ -213,13 +219,30 @@ void SendTaskToDatanode(int connfd)
 int TaskSendFinished(int connfd)
 //检查connfd对应的datanode的所有归档任务是否完成，如果完成，就返回1;否则返回0
 {
-
-	return 0;
+	if(g_TaskStartBlockNum >= 996)return 1;
+		else return 0;
+	//return 0;
 
 	}
 void WriteTaskFeedbackLog(int connfd,char *recvbuff,unsigned long length)
 {
-
+	pFeedback FeedbackDToN = (pFeedback)recvbuff;
+	//int logFd = open("TaskFeedbackLog.log",O_WRONLY|O_CREAT,0666);//使用O_CREAT时必须用参数mode = 0666
+	//本来想用·pwrite这样就不用加互斥锁，但是写入结构化的数据，在文件读取时只能用函数写太麻烦了，就用了文件读写函数没有用系统调用
+	pthread_mutex_lock(&logFileLock);
+	fprintf(logFile,"%lf,%lf,%lf,%lf",FeedbackDToN->wholeBandwidth,FeedbackDToN->availableBandwidth,FeedbackDToN->wholeStorageSpace,FeedbackDToN->availableStorageSpace);
+	fprintf(logFile,"%u,%u,%u,%u\n",FeedbackDToN->finishedOrNot,FeedbackDToN->allocatedTask,FeedbackDToN->finishedTask,FeedbackDToN->finishedTime);
+	pthread_mutex_unlock(&logFileLock);
+	/*
+	uint64_t wholeBandwidth;//B/s，总带宽
+	uint64_t availableBandwidth;//可用带宽
+	uint64_t wholeStorageSpace;//B
+	uint64_t availableStorageSpace;
+	unsigned int finishedOrNot ;//如果为1表示分配的任务已经完成，为0表示没有完成，只有当第一次注册时默认为1不是这个含义
+	unsigned int allocatedTask ;//被分配的任务数量，即数据块的个数
+	unsigned int finishedTask ; //在预想时间内完成的数据块的个数
+	unsigned int finishedTime ; //如果完成了，提前完成所花费的时间
+	*/
 	return ;
 	}
 
@@ -250,7 +273,7 @@ void *ProvideTask(void *arg)
 	while(ProvideTaskFinished()!= 1)
 	{
 		while(VersionUpdated() == false);
-		if(VersionUpdated()==1)//第一次接收到反馈，即所有节点初始化过程
+		if((g_versionNum-1)==1)//第一次接收到反馈，即所有节点初始化过程
 		{
 			for(i=0;i<nodeNum;i++)
 			{
@@ -306,7 +329,6 @@ bool VersionUpdated()
 	}
 	g_versionNum++;
 	return true;
-
 	}
 int ProvideTaskFinished()//生成任务结束,等于1结束，等于0未结束
 {
