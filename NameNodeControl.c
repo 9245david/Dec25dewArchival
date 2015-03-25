@@ -23,6 +23,7 @@ int main(int argc,char**argv)
 	pthread_t pthread_provide_task;
 	int rt ;
 	rt = pthread_create(&pthread_provide_task,NULL,&ProvideTask,(void*)NULL);
+	if(DEW_DEBUG ==1)printf("创建了生产任务进程\n");
 	NamenodeControlServer();
 	init_cluster();
 	Print_cluster_lay();
@@ -55,6 +56,7 @@ int NamenodeControlServer()
     		exit(-1);
     	}
     /*listen 函数告诉内核，这个套接字可以接受来自客户端的请求,BACKLOG是请求个数*/
+
     	if(listen(listenfd,BACKLOG)==-1)
     	{
     		perror("listen error\n");
@@ -136,6 +138,7 @@ int handle_connect(int listen_sock)//返回0正常，返回其他值，失败
 		pthread_mutex_init(&logFileLock,NULL);
 		pthread_node_num = (pthread_t*)malloc(nodenum*sizeof(pthread_t));
 		assert(pthread_node_num !=NULL);
+		if(DEW_DEBUG ==1)printf("等待节点注册\n");
 		while((nodenum--)>=0)//等待所有datanode连接
 		{
 			Pconnfd = (int*)malloc(sizeof(int));
@@ -170,6 +173,7 @@ void NodeRegist(int nodeConnfd,char *nodeIP,int nodeNum)
 	g_nodeConnfd[nodeNum - 1] = nodeConnfd;
 	memcpy(g_nodeIP[nodeNum - 1], nodeIP, strlen(nodeIP));
 	g_feedbackVersion[nodeNum - 1] = 1;
+	if(DEW_DEBUG == 1)printf("节点号%d,IP %s 注册\n",nodeNum-1,nodeIP);
 
 	}
 void ProcessDatanodeState(char * buff, long length, int connfd)
@@ -270,6 +274,7 @@ void *ProvideTask(void *arg)
 	g_pDatanodeTask = (pTaskHead)malloc(sizeof(nTaskHead)*DATANODE_NUMBER);
 	assert(g_pDatanodeTask != NULL);
 	g_TaskStartBlockNum = 0;//初始化块号
+	if(DEW_DEBUG ==1)printf("start ProvideTask\n");
 	while(ProvideTaskFinished()!= 1)
 	{
 		while(VersionUpdated() == false);

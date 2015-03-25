@@ -31,7 +31,8 @@ int main(int argc,char** argv)
 	PnamenodeID = (PNamenodeID)malloc(sizeof(NamenodeID));
 	assert(PnamenodeID != NULL);
 	PnamenodeID->NameToDataPort = DATA_TO_NAME_PORT;
-	PnamenodeID->Namenode_ADDR = "192.168.0.68";
+	PnamenodeID->Namenode_ADDR = "192.168.0.33";
+	printf("start datanode to namenode\n");
 	DatanodeToNamenode(NULL);
 	return 0;
 	}
@@ -47,7 +48,7 @@ void * DatanodeToNamenode(void * arg)
 	sock_DtoN = DatanodeRegistOnNamenode();//注册namenode
 	assert(sock_DtoN > -1);
 	rt = pthread_create(&pthread_server,NULL,&DataToDataTaskServer,(void*)NULL);//响应连接
-		assert(0 != rt);
+		assert(0 == rt);
 	DatanodeControlwithNamenode(sock_DtoN);//任务信息的交流，以及时间控制
 	pthread_join(pthread_server,NULL);
 	return NULL;
