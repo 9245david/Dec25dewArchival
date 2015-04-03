@@ -75,7 +75,7 @@ int DatanodeRegistOnNamenode(void)
 		close(sock_DtoN);
 		return -1;
 		}
-
+	if(DEW_DEBUG ==1)printf("node regist sucucess\n");
 	return sock_DtoN;//返回连接之后的套接字，方便之后与namenode通信
    // close(sock_DtoN);//所有任务完成了才能关闭
 	}
@@ -93,6 +93,7 @@ int DatanodeControlwithNamenode(int sock_DtoN)
 	char recvTaskBuff[DATA_NAME_MAXLENGTH];
 	int rt = 0;
 	pthread_t datanodeTime;
+	if(DEW_DEBUG==1)printf("inside DatanodeControlwithNamenode\n");
 	assert(sock_DtoN > 0);
 	FeedbackDToN = (pFeedback)malloc(sizeof(nFeedback));
 	FeedbackDToN->allocatedTask = 0;
@@ -106,15 +107,18 @@ int DatanodeControlwithNamenode(int sock_DtoN)
 			close(sock_DtoN);
 			return -1;
 		}
-
+	
+	if(DEW_DEBUG==1)printf("receive time\n");
 	recv = DataTransportRead(sock_DtoN,recvTaskBuff,sizeof(struct timeval));
+
+	if(DEW_DEBUG==1)printf("receive time success\n");
 	assert(recv > 0);
 	memcpy(&taskStarttime,recvTaskBuff,sizeof(struct timeval));
 	//处理时间的函数ProcessTime(&taskStarttime);
 	//接收到归档开始时间之后创建一个记录时间的线程，
 	//定时给DatanodeToNamenode线程触发反馈归档进度的请求
 	rt = pthread_create(&datanodeTime, NULL, &ProcessTime, (void*)(&taskStarttime));
-	assert(0 != rt);
+	assert(0 == rt);
 	while (TaskRecvFinished(localIPaddress) != 1)
 	{
 		recv = DataTransportRead(sock_DtoN,recvTaskBuff,sizeof(int));//首先接收数据长度参数
@@ -198,6 +202,7 @@ void ProcessTask(char *recvTaskBuff,long recv)
 	if(TaskNum == 0)
 	{
 	//	处理没有任务的情况
+	return;
 	}
 	pthread_task_num = (pthread_t *)malloc(TaskNum * sizeof(pthread_t));
 	assert(pthread_task_num == NULL);
@@ -207,7 +212,7 @@ void ProcessTask(char *recvTaskBuff,long recv)
 
 		pChunkTask = (pTaskBlock)(recvTaskBuff + i*sizeof(nTaskBlock));
 		rt = pthread_create(pthread_task_num, NULL, &ProcessChunkTask, (void*)pChunkTask);
-		assert(0 != rt);
+		assert(0 == rt);
 		pthread_task_num ++;
 	}
 

@@ -43,8 +43,9 @@ int init_cluster()
 	int rack_blknum = 0; //单个机架上存储了多少个块
 	char * p_node_bit = NULL;
 	char * p_rack_bit = NULL;
-	printf("input the block num (<%d): ",NODE_BLKNUM*RACK_NODE*RACK_NUM/3);
-	scanf("%d",&blk_id);
+//	printf("input the block num (<%d): ",NODE_BLKNUM*RACK_NODE*RACK_NUM/3);
+//	scanf("%d",&blk_id);
+	blk_id =6;
 	if(blk_id%8==0)
 	{
 	    single_node_mapLength=blk_id/8;

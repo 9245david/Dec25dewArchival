@@ -493,6 +493,7 @@ void* DataToDataTaskServer(void*arg)
 		struct sockaddr_in servaddr;
 		listenfd = socket(AF_INET,SOCK_STREAM,0);
 		on = 1;
+	    if(DEW_DEBUG ==1)printf("inside DataToDataTaskServer\n");
 		ret = setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on) );
 	    bzero(&servaddr,sizeof(servaddr));
 	    servaddr.sin_family = AF_INET;
@@ -525,6 +526,7 @@ int handle_connect(int listen_sock)//返回0正常，返回其他值，失败
 		len = sizeof(cliaddr);
 		pthread_mutex_init(&g_ServerLock,NULL);
 
+	    if(DEW_DEBUG ==1)printf("inside handle_connect\n");
 		while(1)//等待所有datanode连接
 		{
 			Pconnfd = (int*)malloc(sizeof(int));
@@ -558,6 +560,7 @@ void *handle_request(void * arg)
 	assert(pChunkTransport!=NULL);
 	connfd = *((int*)arg);
 	free(arg);
+	if(DEW_DEBUG ==1)printf("inside hanlde_request %d\n",connfd);
 	pthread_mutex_lock(&g_ServerLock);
 			if(g_pServerBuffList == NULL)
 			{
@@ -575,6 +578,8 @@ void *handle_request(void * arg)
 			pthread_mutex_unlock(&g_ServerLock);
 	while(1)//反复利用不同的数据块
 	{
+
+	    if(DEW_DEBUG ==1)printf("inside hanlde_request while\n");
 		recv = DataTransportRead(connfd,(char*)pChunkTransport,sizeof(nTransportBlock));
 		if(recv<0)
 		{
@@ -606,6 +611,7 @@ void *SendData(void*arg)//只是发送缓存，发送数据，发送完成之后
 	int connfd = connfdClient->connfd;
 	pSingleBuff pBuffPice = connfdClient->pBuffPice;
 	long piceNum = (BLOCK_SIZE/BUFF_PICE_SIZE);
+	 if(DEW_DEBUG ==1)printf("inside SendData\n");
 	pthread_detach(pthread_self());
 	while((piceNum--)>=0)
 			{
@@ -630,6 +636,7 @@ void *ReadLocalData(void * arg)
 	pSingleBuff pBuffPice = NULL;
 	pMemory tmpMemory = NULL;
 	long piceNum = (BLOCK_SIZE/BUFF_PICE_SIZE);
+	if(DEW_DEBUG ==1)printf("inside ReadLocalData\n");
 	pthread_detach(pthread_self());
 	p_tmpLocalData = (pLocalData)arg;
 	localBlock = p_tmpLocalData->localBlock;

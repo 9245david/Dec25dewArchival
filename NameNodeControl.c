@@ -22,11 +22,11 @@ int main(int argc,char**argv)
 	int i;
 	pthread_t pthread_provide_task;
 	int rt ;
+	init_cluster();
+	Print_cluster_lay();
 	rt = pthread_create(&pthread_provide_task,NULL,&ProvideTask,(void*)NULL);
 	if(DEW_DEBUG ==1)printf("创建了生产任务进程\n");
 	NamenodeControlServer();
-	init_cluster();
-	Print_cluster_lay();
 
 	assert(rt==0);
 	for(i=0;i<DATANODE_NUMBER;i++)
@@ -74,7 +74,8 @@ void *handle_request(void * arg)
 	char sendbuff[DATA_NAME_MAXLENGTH];
 	long recv,send;
 	long task_length = 0;
-
+	struct sockaddr_in cliaddr;
+	socklen_t len;
 	connfd = *((int*)arg);
 	free(arg);
 	if(DataTransportWrite(connfd,"welcome",7)!=7)
@@ -83,6 +84,7 @@ void *handle_request(void * arg)
 		close(connfd);
 		return NULL;
 	}
+	if(DEW_DEBUG==1)printf("send welcome to datanode\n");
 	//固定时间间隔，接受datanode 状态信息，包括任务完成度，
 //	第一次接受状态信息时，因为没有任务所以单次任务完成度为1.
 	recv = DataTransportRead(connfd,recvbuff,sizeof(nFeedback));
@@ -96,10 +98,15 @@ void *handle_request(void * arg)
 	ProcessDatanodeState(recvbuff, recv, connfd);
 
 	while(ALL_DATANODE_CONNECTED == false)NULL;//所有连接建立
+
+//	if(DEW_DEBUG==1)printf("ALL_DATANODE_CONNECTED\n");
 	DataTransportWrite(connfd,(char*)&starttime,sizeof(struct timeval));// 统一发送归档开始时间
+	//
+	len = sizeof(struct sockaddr_in);
+	getpeername(connfd,(struct sockaddr*)&cliaddr,&len);
+	if(DEW_DEBUG ==1)printf("send starttime to %s ,%lds \n",inet_ntoa(cliaddr.sin_addr),starttime.tv_sec);
 
-
-    while(TaskSendFinished(connfd) != 1)//所有的归档任务没有派送完成
+    while(TaskSendFinished(connfd) != 1)//所有的归档任务没有派送完
     {
     	 // 发送任务给各个节点
     	SendTaskToDatanode(connfd);//此处有一个DataTransportWrite
@@ -110,15 +117,17 @@ void *handle_request(void * arg)
     	//当约定的时间点到达之后发送反馈信息，这样貌似
     		if(recv<0)
     		{
-    			printf("namenode recvdata error\n");
+    			printf("namenode nFeedback error\n");
     			close(connfd);
     			return NULL;
     		}
+	if(DEW_DEBUG ==1)printf("recv nFeedback from %d",GetNodeIDFromConnfd(connfd));
     	WriteTaskFeedbackLog(connfd,recvbuff,sizeof(nFeedback));//将datanode反馈的信息写入日志中
     	ProcessDatanodeState(recvbuff, recv, connfd);//将反馈信息提交给归档管理器
 
     }
 
+	if(DEW_DEBUG ==1)printf("get out of handle_request\n");
 	return NULL;
 	}
 
@@ -139,7 +148,7 @@ int handle_connect(int listen_sock)//返回0正常，返回其他值，失败
 		pthread_node_num = (pthread_t*)malloc(nodenum*sizeof(pthread_t));
 		assert(pthread_node_num !=NULL);
 		if(DEW_DEBUG ==1)printf("等待节点注册\n");
-		while((nodenum--)>=0)//等待所有datanode连接
+		while((nodenum)>0)//等待所有datanode连接
 		{
 			Pconnfd = (int*)malloc(sizeof(int));
 			*Pconnfd = accept(listen_sock,(struct sockaddr*)&cliaddr,&len);
@@ -155,11 +164,13 @@ int handle_connect(int listen_sock)//返回0正常，返回其他值，失败
 					printf("pthread_create error\n");
 					return rt;
 				         }
+			nodenum--;
 		}
 		ALL_DATANODE_CONNECTED = true;//所有连接已经建立
 //		close(listen_sock);
 		gettimeofday(&starttime,NULL);
 
+	if(DEW_DEBUG==1)printf("all the node have regist, namenode set the starttime\n");
 		return 0;
 	}
 void NodeRegist(int nodeConnfd,char *nodeIP,int nodeNum)
@@ -207,8 +218,10 @@ void SendTaskToDatanode(int connfd)
 	int taskLength = 0;
 	int nodeID = 0;
 	char  * buff_datanode_task = NULL;
+	long send;
 	nodeID = GetNodeIDFromConnfd(connfd);
 	assert(nodeID >= 0 && nodeID < DATANODE_NUMBER);
+	if(DEW_DEBUG==1)printf("inside SendTaskToDatanode %d\n",nodeID);
 	//taskLength = *(long *)(DatanodeTask[nodeID]);
 	taskLength =(g_pDatanodeTask[nodeID].taskNum)*sizeof(nTaskBlock);
 	//taskLength += sizeof(long);
@@ -216,14 +229,22 @@ void SendTaskToDatanode(int connfd)
 	assert(buff_datanode_task != NULL);
 	memcpy(buff_datanode_task,&(g_pDatanodeTask[nodeID].taskNum),g_pDatanodeTask[nodeID].taskNum);
 	memcpy(buff_datanode_task+sizeof(int),g_pDatanodeTask[nodeID].singleStripTask,taskLength);
-	DataTransportWrite(connfd,buff_datanode_task, sizeof(int)+taskLength);
+	send = DataTransportWrite(connfd,buff_datanode_task, sizeof(int)+taskLength);
+	if(send<0)
+        {
+                printf("send task to datanode error\n");
+                close(connfd);
+                return ;
+        }
+	if(DEW_DEBUG==1)printf("outside SendTaskToDatanode\n");
 	return ;
 	}
 
 int TaskSendFinished(int connfd)
 //检查connfd对应的datanode的所有归档任务是否完成，如果完成，就返回1;否则返回0
 {
-	if(g_TaskStartBlockNum >= 996)return 1;
+	if(g_TaskStartBlockNum >= 6)return 1;
+//	if(g_TaskStartBlockNum >= 996)return 1;
 		else return 0;
 	//return 0;
 
@@ -233,6 +254,8 @@ void WriteTaskFeedbackLog(int connfd,char *recvbuff,unsigned long length)
 	pFeedback FeedbackDToN = (pFeedback)recvbuff;
 	//int logFd = open("TaskFeedbackLog.log",O_WRONLY|O_CREAT,0666);//使用O_CREAT时必须用参数mode = 0666
 	//本来想用·pwrite这样就不用加互斥锁，但是写入结构化的数据，在文件读取时只能用函数写太麻烦了，就用了文件读写函数没有用系统调用
+	
+	if(DEW_DEBUG==1)printf("inside WriteTaskFeedbackLog \n");
 	pthread_mutex_lock(&logFileLock);
 	fprintf(logFile,"%lf,%lf,%lf,%lf",FeedbackDToN->wholeBandwidth,FeedbackDToN->availableBandwidth,FeedbackDToN->wholeStorageSpace,FeedbackDToN->availableStorageSpace);
 	fprintf(logFile,"%u,%u,%u,%u\n",FeedbackDToN->finishedOrNot,FeedbackDToN->allocatedTask,FeedbackDToN->finishedTask,FeedbackDToN->finishedTime);
@@ -255,6 +278,8 @@ int GetNodeIDFromConnfd(int connfd)
 //根据连接套接字得到节点号
 {
 	int i = 0;
+
+//	if(DEW_DEBUG==1)printf("inside GetNodeIDFromConnfd \n");
 	for(i=0; i< DATANODE_NUMBER; i++)
 	{
 		if (g_nodeConnfd[i] == connfd)return i;
@@ -278,6 +303,7 @@ void *ProvideTask(void *arg)
 	while(ProvideTaskFinished()!= 1)
 	{
 		while(VersionUpdated() == false);
+		if(DEW_DEBUG ==1)printf("Version updated in ProvideTask\n");
 		if((g_versionNum-1)==1)//第一次接收到反馈，即所有节点初始化过程
 		{
 			for(i=0;i<nodeNum;i++)
@@ -319,7 +345,11 @@ void *ProvideTask(void *arg)
 	//	g_TaskStartBlockNum = g_TaskStartBlockNum + EREASURE_N - EREASURE_K;//增加块号+6
 		ProvideTaskAlgorithm(g_weight,g_pDatanodeTask);
 		//依据权重值，本次分配的起始块号，得到g_pDatanodeTask中存储的每个节点的任务情况
+		
+
 	}//while
+	if(DEW_DEBUG==1)printf("go of out ProvideTask\n");
+
 	return NULL;
 }
 
@@ -328,6 +358,7 @@ bool VersionUpdated()
 	int i = 0;
 	int j = 0;
 	j = g_versionNum;
+//	if(DEW_DEBUG==1)printf("inside VersionUpdated \n");
 	for(i = 1; i < DATANODE_NUMBER; i++)
 	{
 		if(j != g_feedbackVersion[i])return false;
@@ -337,7 +368,8 @@ bool VersionUpdated()
 	}
 int ProvideTaskFinished()//生成任务结束,等于1结束，等于0未结束
 {
-	if(g_TaskStartBlockNum >= 996)return 1;
+	if(g_TaskStartBlockNum >= 6)return 1;
+//	if(g_TaskStartBlockNum >= 996)return 1;
 	else return 0;
 
 	}
@@ -360,6 +392,7 @@ void ProvideTaskAlgorithm(int * g_weight,pTaskHead g_pDatanodeTask)
 	pTaskBlock p_temp_task_block = NULL;
 	strp_lay_head = get_strp_lay(g_TaskStartBlockNum);
 
+	if(DEW_DEBUG==1)printf("inside ProvidTaskAlgorithm \n");
 	weight_strp_lay = get_weight_strp_lay(strp_lay_head,g_weight);
 	while(weight_strp_lay !=NULL)//一次循环对应一个条带的任务分配
 	{
@@ -440,7 +473,7 @@ void ProvideTaskAlgorithm(int * g_weight,pTaskHead g_pDatanodeTask)
 			}
 
 		g_TaskStartBlockNum = g_TaskStartBlockNum + EREASURE_N - EREASURE_K;
-		if(g_TaskStartBlockNum >= 996)return;
+		if(g_TaskStartBlockNum >= 6)return;
 		strp_lay_head = get_strp_lay(g_TaskStartBlockNum);
 		weight_strp_lay = get_weight_strp_lay(strp_lay_head,g_weight);
 
