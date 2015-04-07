@@ -210,6 +210,7 @@ void ProcessDatanodeState(char * buff, long length, int connfd)
 void SendTaskToDatanode(int connfd)
 //所有节点的任务信息生成之后，每个节点的任务（没有任务的接受空任务）,每个节点连接对应一个节点
 /*
+ *
  * 需要ArchivalManager.c将任务已经生成才可以 char *DatanodeTask[DATANODE_NUMBER];
  * 	此处留有疑问，可不可以设计为只发送任务给有任务的节点，反馈信息也是只接收对应节点的反馈信息，
  *	这样对于feedback的同步g_feedbackVersion的判断机制也需要重新设计

@@ -13,6 +13,7 @@
 #include "DewHa.h"
 #include "BlockStruct.h"
 #include <stdint.h>
+#include <semaphore.h>
 #ifndef RACK_NODE
 #define RACK_NODE 6 //机架节点数,同时也是冗余码的K
 #define RACK_NUM 3 //机架数,同时也是副本数
