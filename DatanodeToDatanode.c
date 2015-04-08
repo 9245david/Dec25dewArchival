@@ -58,8 +58,8 @@ typedef struct transportBlock{
 */
 
 #include "DatanodeToDatanode.h"
-
-
+extern int g_finished_task;
+extern pthread_mutex_t g_finished_task_lock;
 pConnect g_pFreeClientBuffList = NULL;
 pConnect g_pUsedClientBuffList = NULL;//暂时不用上
 pConnectServer g_pServerBuffList = NULL;
@@ -190,6 +190,7 @@ void * ProcessChunkTask(void* argv)
 			//thread_client_num++;
 		}
 		EncodeData(connfdServer,pLocalBuff,connfdClient,pChunkTask);//生产数据
+
 		for(i=0; i<EREASURE_K; i++)//回收客户端
 		{
 			if(DEW_DEBUG==1)printf("等待回收内存\n");
@@ -212,7 +213,9 @@ void * ProcessChunkTask(void* argv)
 		printf("pChunkTask error\n");
 		return NULL;
 	}
-
+	pthread_mutex_lock(&g_finished_task_lock);
+	g_finished_task++;
+	pthread_mutex_unlock(&g_finished_task_lock);
 	return (void*)NULL;
 
 }

@@ -59,6 +59,8 @@ semflg 指定该信号量的读写权限，当创建信号量时不许加IPC_CRE
 	buf指针只在cmd==IPC_STAT或IPC_SET时有用，作用是semid所指向的信号量集（semid_ds机构体）。一般情况下不常用，这里不做谈论。
 	另外，cmd == IPC_RMID还是比较有用的。从内核中删除信号量集合
  */
+#ifndef SEMTOOL_H_
+#define SEMTOOL_H_
 #include <sys/types.h>
 #include <unistd.h>
 #include <sys/ipc.h>
@@ -270,3 +272,5 @@ int mainSEM(int argc, char *argv[])
 
     return 0;
 }
+
+#endif

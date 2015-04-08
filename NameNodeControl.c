@@ -15,13 +15,20 @@
 
 //#include "aa.h"
 #include "Name_Node_Control.h"
+#include "semtool.h"
 FILE* logFile = NULL;//打开一个已经存在的文件
 pthread_mutex_t logFileLock;
+key_t key_task = ftok(".", 's');
 int main(int argc,char**argv)
 {
 	int i;
 	pthread_t pthread_provide_task;
 	int rt ;
+	int *sem_init_array[DATANODE_NUMBER] ={0};
+
+	int semid;
+	semid = sem_create(key_task,DATANODE_NUMBER);
+	sem_setall(semid,sem_init_array);
 	init_cluster();
 	Print_cluster_lay();
 	rt = pthread_create(&pthread_provide_task,NULL,&ProvideTask,(void*)NULL);
@@ -76,8 +83,12 @@ void *handle_request(void * arg)
 	long task_length = 0;
 	struct sockaddr_in cliaddr;
 	socklen_t len;
+	int node_num;
+	int semid;
 	connfd = *((int*)arg);
 	free(arg);
+	node_num = GetNodeIDFromConnfd(connfd);
+	semid = sem_open(key_task);
 	if(DataTransportWrite(connfd,"welcome",7)!=7)
 	{
 		printf(" welcome to datanode error\n");
@@ -105,10 +116,11 @@ void *handle_request(void * arg)
 	len = sizeof(struct sockaddr_in);
 	getpeername(connfd,(struct sockaddr*)&cliaddr,&len);
 	if(DEW_DEBUG ==1)printf("send starttime to %s ,%lds \n",inet_ntoa(cliaddr.sin_addr),starttime.tv_sec);
-
+//	int semid;
     while(TaskSendFinished(connfd) != 1)//所有的归档任务没有派送完
     {
     	 // 发送任务给各个节点
+    	sem_p(semid,node_num);
     	SendTaskToDatanode(connfd);//此处有一个DataTransportWrite
     	recv = DataTransportRead(connfd,recvbuff,sizeof(nFeedback));//首先接收数据长度参数
 
@@ -276,7 +288,7 @@ void WriteTaskFeedbackLog(int connfd,char *recvbuff,unsigned long length)
 
 
 int GetNodeIDFromConnfd(int connfd)
-//根据连接套接字得到节点号
+//根据连接套接字得到节点号0~17
 {
 	int i = 0;
 
@@ -346,7 +358,11 @@ void *ProvideTask(void *arg)
 	//	g_TaskStartBlockNum = g_TaskStartBlockNum + EREASURE_N - EREASURE_K;//增加块号+6
 		ProvideTaskAlgorithm(g_weight,g_pDatanodeTask);
 		//依据权重值，本次分配的起始块号，得到g_pDatanodeTask中存储的每个节点的任务情况
-		
+		int semid = sem_open(key_task);
+		for(i = 0; i<DATANODE_NUMBER; i++)
+		{
+			sem_v(semid,i);
+		}
 
 	}//while
 	if(DEW_DEBUG==1)printf("go of out ProvideTask\n");

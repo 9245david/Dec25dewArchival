@@ -26,8 +26,12 @@ typedef struct RegistAndTaskFeedback{
 	int finishedTask ; //在预想时间内完成的数据块的个数
 	int finishedTime ; //如果完成了，提前完成所花费的时间
 }nFeedback,*pFeedback;
+
+int g_finished_task = 0;
+pthread_mutex_t g_finished_task_lock;
 int main(int argc,char** argv)
 {
+	pthread_mutex_init(&g_finished_task_lock,NULL);
 	PnamenodeID = (PNamenodeID)malloc(sizeof(NamenodeID));
 	assert(PnamenodeID != NULL);
 	PnamenodeID->NameToDataPort = DATA_TO_NAME_PORT;
@@ -132,9 +136,24 @@ int DatanodeControlwithNamenode(int sock_DtoN)
 		    			close(sock_DtoN);
 		    			return -1;
 		    		}
+		pthread_mutex_lock(&g_finished_task_lock);
+		g_finished_task = 0;
+		pthread_mutex_unlock(&g_finished_task_lock);
 		ProcessTask(recvTaskBuff,recv);//将任务抛给任务处理模块
 		//如果是最后一次任务，即空任务，此时ProcessTask函数会将TaskRecvFinished设置为1
 		while(sendFeedback == false);//时间到了发送任务反馈给namenode
+		FeedbackDToN-> allocatedTask = task_length;
+		FeedbackDToN->availableBandwidth = 64;
+		FeedbackDToN->wholeBandwidth = 100;
+		FeedbackDToN->finishedTask = g_finished_task;
+		if(g_finished_task >= task_length)
+		{
+			FeedbackDToN->finishedOrNot =1;
+		}
+		else
+		{
+			FeedbackDToN->finishedOrNot =0;
+		}
 		DataTransportWrite(sock_DtoN, (char*)FeedbackDToN, length);
 		pthread_mutex_lock(&lockFeedback);
 		assert(sendFeedback == true);
@@ -190,6 +209,7 @@ void * ProcessTime(void * taskTime)
 	}
 
 void ProcessTask(char *recvTaskBuff,long recv)
+//pthread_task_num线程返回表示该条带的任务完成（其实是编码完成，但是也几乎等于完成了，因为每编码一个块就会立即发送）
 {
 	int TaskNum = 0;
 	int i = 0;
