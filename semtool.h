@@ -85,7 +85,7 @@ union semun
     struct seminfo *__buf;    /* buffer for IPC_INFO */
 };
 int sem_create(key_t key,int nsems);// 依据key值,创建个数为nsems的信号量
-int sem_open(key_t key);//由Ｋｅｙ至得到信号集描述符
+int sem_openid(key_t key);//由Ｋｅｙ至得到信号集描述符
 int sem_p(int semid, short sem_num);//对信号量集合数组的sem_num号位置进行Ｐ操作（0～信号量数数-1）
 int sem_v(int semid, short sem_num);//对信号量集合数组的sem_num号位置进行V操作（0～信号量数数-1）
 int sem_d(int semid);//删除信号量集合
@@ -104,7 +104,7 @@ int sem_create(key_t key,int nsems)
     return semid;
 }
 
-int sem_open(key_t key)//由Ｋｅｙ至得到信号集描述符
+int sem_openid(key_t key)//由Ｋｅｙ至得到信号集描述符
 {
     int semid = semget(key, 0, 0);
     if (semid == -1)
@@ -239,33 +239,33 @@ int mainSEM(int argc, char *argv[])
         sem_create(key,1);
         break;
     case 'p':
-        semid = sem_open(key);
+        semid = sem_openid(key);
         sem_p(semid, 0);
         sem_getval(semid, 0);
         break;
     case 'v':
-        semid = sem_open(key);
+        semid = sem_openid(key);
         sem_v(semid, 0);
         sem_getval(semid, 0);
         break;
     case 'd':
-        semid = sem_open(key);
+        semid = sem_openid(key);
         sem_d(semid);
         break;
     case 's':
-        semid = sem_open(key);
+        semid = sem_openid(key);
         sem_setval(semid, 0, atoi(optarg));
         break;
     case 'g':
-        semid = sem_open(key);
+        semid = sem_openid(key);
         sem_getval(semid, 0);
         break;
     case 'f':
-        semid = sem_open(key);
+        semid = sem_openid(key);
         sem_getmode(semid);
         break;
     case 'm':
-        semid = sem_open(key);
+        semid = sem_openid(key);
         sem_setmode(semid, argv[2]);
         break;
     }

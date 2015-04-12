@@ -18,15 +18,16 @@
 #include "semtool.h"
 FILE* logFile = NULL;//打开一个已经存在的文件
 pthread_mutex_t logFileLock;
-key_t key_task = ftok(".", 's');
+key_t key_task ;
 int main(int argc,char**argv)
 {
 	int i;
 	pthread_t pthread_provide_task;
 	int rt ;
-	int *sem_init_array[DATANODE_NUMBER] ={0};
+	unsigned short sem_init_array[DATANODE_NUMBER] ={0};
 
 	int semid;
+	 key_task = ftok(".", 1);
 	semid = sem_create(key_task,DATANODE_NUMBER);
 	sem_setall(semid,sem_init_array);
 	init_cluster();
@@ -42,6 +43,7 @@ int main(int argc,char**argv)
 			}
 	pthread_join(pthread_provide_task,NULL);
 	fclose(logFile);
+	sem_d(semid);
 }
 int NamenodeControlServer()
 {
@@ -88,7 +90,7 @@ void *handle_request(void * arg)
 	connfd = *((int*)arg);
 	free(arg);
 	node_num = GetNodeIDFromConnfd(connfd);
-	semid = sem_open(key_task);
+	semid = sem_openid(key_task);
 	if(DataTransportWrite(connfd,"welcome",7)!=7)
 	{
 		printf(" welcome to datanode error\n");
@@ -358,7 +360,7 @@ void *ProvideTask(void *arg)
 	//	g_TaskStartBlockNum = g_TaskStartBlockNum + EREASURE_N - EREASURE_K;//增加块号+6
 		ProvideTaskAlgorithm(g_weight,g_pDatanodeTask);
 		//依据权重值，本次分配的起始块号，得到g_pDatanodeTask中存储的每个节点的任务情况
-		int semid = sem_open(key_task);
+		int semid = sem_openid(key_task);
 		for(i = 0; i<DATANODE_NUMBER; i++)
 		{
 			sem_v(semid,i);
@@ -374,7 +376,8 @@ bool VersionUpdated()
 {
 	int i = 0;
 	int j = 0;
-	j = g_versionNum;
+//	j = g_versionNum;
+	 j = g_versionNum + 1;//由于g_feedbackVersion 在连接时+1，在第一次接受feedback时+1 ，所以此处需要+1
 //	if(DEW_DEBUG==1)printf("inside VersionUpdated \n");
 	for(i = 1; i < DATANODE_NUMBER; i++)
 	{

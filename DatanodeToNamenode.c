@@ -195,8 +195,9 @@ void * ProcessTime(void * taskTime)
 	while(TaskRecvFinished(localIPaddress) != 1)
 	{
 		sleep(oneTasktime.tv_sec);
-		//while(true != sendFeedback)//当时为什么会用while
-		assert(sendFeedback == false);
+		while(true == sendFeedback);//当时为什么会用while
+	
+	//	assert(sendFeedback == false);//时间到了不一定就可以发送了，状态位sendFeedback 可能还是true,因为发送过程太慢了？
 		if(true != sendFeedback)
 		{
 			pthread_mutex_lock(&lockFeedback);

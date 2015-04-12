@@ -430,6 +430,7 @@ list_head *get_weight_strp_lay(list_head* strp_lay_head,int * weight)
 		if(flag == 1)break;
 	}
 	//权重值和分布得到任务
+	task_strp_lay_head = (list_head *)malloc(sizeof(list_head));
 	init_list_head(task_strp_lay_head);//初始化任务链表头
 	p1 = p_node_weight_head->next;
 	while(block_num != (EREASURE_N-EREASURE_K))
@@ -501,7 +502,11 @@ list_head *get_weight_strp_lay(list_head* strp_lay_head,int * weight)
 		}
 		if(flag == 1)break;//没有交换产生
 	}
-
+	if(DEW_DEBUG ==1)
+		{
+			print("task lay\n");
+			print_double_circular(weight_strp_lay);
+		}
 
 	return weight_strp_lay;
 
