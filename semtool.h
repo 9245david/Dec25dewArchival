@@ -118,7 +118,7 @@ int sem_p(int semid, short sem_num)//对信号量集合数组的sem_num号位置
     struct sembuf sb = {sem_num, -1, /*IPC_NOWAIT*/SEM_UNDO};
     int ret = semop(semid, &sb, 1);
     if (ret == -1)
-        ERR_EXIT("semop");
+        ERR_EXIT("semop dew");
 
     return ret;
 }
@@ -128,7 +128,7 @@ int sem_v(int semid, short sem_num)//对信号量集合数组的sem_num号位置
     struct sembuf sb = {sem_num, 1, /*0*/SEM_UNDO};
     int ret = semop(semid, &sb, 1);
     if (ret == -1)
-        ERR_EXIT("semop");
+        ERR_EXIT("semop dew");
 
     return ret;
 }

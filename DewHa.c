@@ -504,7 +504,7 @@ list_head *get_weight_strp_lay(list_head* strp_lay_head,int * weight)
 	}
 	if(DEW_DEBUG ==1)
 		{
-			print("task lay\n");
+			printf("task lay\n");
 			print_double_circular(weight_strp_lay);
 		}
 

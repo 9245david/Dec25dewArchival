@@ -171,7 +171,7 @@ int handle_connect(int listen_sock)//返回0正常，返回其他值，失败
 			//注册,连接套接字*Pconnfd与节点号以及节点iｐ的对应关系，在这之前必须保证已经有iｐ和节点号的对应关系(不用，NodeRegist完成该功能)
 			g_nodeRegist ++;
 			NodeRegist(*Pconnfd,inet_ntoa(cliaddr.sin_addr),g_nodeRegist);
-			rt = pthread_create(pthread_node_num+(DATANODE_NUMBER-nodenum-1),NULL,&handle_request,(void*)Pconnfd);
+			rt = pthread_create(pthread_node_num+(DATANODE_NUMBER-nodenum),NULL,&handle_request,(void*)Pconnfd);
 
 			if(0 != rt)
 					{
@@ -311,6 +311,7 @@ void *ProvideTask(void *arg)
 {
 	int nodeNum = DATANODE_NUMBER;
 	int i=0;
+	int semid = sem_openid(key_task);
 	g_pDatanodeTask = (pTaskHead)malloc(sizeof(nTaskHead)*DATANODE_NUMBER);
 	assert(g_pDatanodeTask != NULL);
 	g_TaskStartBlockNum = 0;//初始化块号
@@ -324,7 +325,7 @@ void *ProvideTask(void *arg)
 			for(i=0;i<nodeNum;i++)
 			{
 				g_pDatanodeTask[i].taskNum = 0;
-				g_weight[i] = g_nodeFeedback[i].availableBandwidth * TASK_TIME / BLOCK_SIZE;
+				g_weight[i] = g_nodeFeedback[i].availableBandwidth * TASK_TIME / (BLOCK_SIZE/1024/1024);
 				g_pDatanodeTask[i].historyNotFinished = false;//默认正常任务完成情况
 				g_pDatanodeTask[i].singleStripTask = NULL;
 			}
@@ -337,11 +338,12 @@ void *ProvideTask(void *arg)
 				g_pDatanodeTask[i].historyNotFinished = false;//默认正常任务完成情况
 				if(g_nodeFeedback[i].allocatedTask == 0)//上一个回合并没有分配任务
 				{
-					g_weight[i] = g_nodeFeedback[i].availableBandwidth * TASK_TIME / BLOCK_SIZE;
+					g_weight[i] = g_nodeFeedback[i].availableBandwidth * TASK_TIME / (BLOCK_SIZE/1024/1024);
 
 				}
 				else if(g_nodeFeedback[i].finishedOrNot == 1)//任务已经完成，依据完成时间的比例得到下次发送的任务个数上限
 				{
+					assert(g_nodeFeedback[i].finishedTime >0);
 					g_weight[i] =	g_nodeFeedback[i].allocatedTask * TASK_TIME / g_nodeFeedback[i].finishedTime;
 				}
 				else//上一回合分配了任务，但是任务没有完成，只能以上次已经完成的块数作为本次的能力，能力减去为完成的工作
@@ -358,9 +360,13 @@ void *ProvideTask(void *arg)
 	//	ProvideTaskAlgorithm(g_weight,g_TaskStartBlockNum,g_pDatanodeTask);
 		//依据权重值，本次分配的起始块号，得到g_pDatanodeTask中存储的每个节点的任务情况
 	//	g_TaskStartBlockNum = g_TaskStartBlockNum + EREASURE_N - EREASURE_K;//增加块号+6
+		if(DEW_DEBUG==1)
+		{
+			for(i=0;i<nodeNum;i++)
+			printf("g_weight[%d] = %d\n",i,g_weight[i]);
+		}
 		ProvideTaskAlgorithm(g_weight,g_pDatanodeTask);
 		//依据权重值，本次分配的起始块号，得到g_pDatanodeTask中存储的每个节点的任务情况
-		int semid = sem_openid(key_task);
 		for(i = 0; i<DATANODE_NUMBER; i++)
 		{
 			sem_v(semid,i);
@@ -414,6 +420,11 @@ void ProvideTaskAlgorithm(int * g_weight,pTaskHead g_pDatanodeTask)
 
 	if(DEW_DEBUG==1)printf("inside ProvidTaskAlgorithm \n");
 	weight_strp_lay = get_weight_strp_lay(strp_lay_head,g_weight);
+	if(DEW_DEBUG ==1)
+		{
+			printf("task lay\n");
+			print_double_circular(weight_strp_lay);
+		}
 	while(weight_strp_lay !=NULL)//一次循环对应一个条带的任务分配
 	{
 		p_temp_node = weight_strp_lay->next;
@@ -500,5 +511,6 @@ void ProvideTaskAlgorithm(int * g_weight,pTaskHead g_pDatanodeTask)
 	}//while 一次循环对应一个条带的任务分配
 
 
+	if(DEW_DEBUG==1)printf("inside ProvidTaskAlgorithm \n");
 	return ;
 	}
