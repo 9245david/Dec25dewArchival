@@ -4,7 +4,7 @@
 #gcc -g Socket_connect_read_write.c DewHa.c NameNodeControl.c -o NameNode.out -lpthread
 
 Datanode:Socket.o DewHa.o DatanodeToDatanode.o DatanodeToNamenode.o
-	gcc Socket.o DewHa.o DatanodeToDatanode.o DatanodeToNamenode.o -o Datanode.out -lpthread 
+	gcc -g3 Socket.o DewHa.o DatanodeToDatanode.o DatanodeToNamenode.o -o Datanode.out -lpthread 
 Socket.o:Socket_connect_read_write.c
 	gcc -g3 -c Socket_connect_read_write.c -o Socket.o
 DewHa.o :DewHa.c

@@ -40,7 +40,12 @@ typedef struct block_lay{
 	list_head listNode;//连接不同的节点
 	list_head listblk;//连接不同的数据块
 }Nblk_inverted,*Pblk_inverted;
-
+typedef struct nodeWeight{
+        int node_num;
+        int node_weight;
+        list_head *  p_node_in_strp;//节点在条带分布链表中的位置
+        struct nodeWeight *next;
+}N_node_weight,*P_node_weight; 
 int cluster_lay[NODE_BLKNUM+1][RACK_NODE*RACK_NUM];//整体布局,0行为节点数据块实际存放个数
 //
 //char *Node_bit_map=NULL;
@@ -87,4 +92,5 @@ int print_double_circular(list_head* strp_lay_head);//打印双向循环链表
 bool VersionUpdated();
 list_head *get_strp_lay(int task_start_block_num);//依据起始块号得到该条带的分布
 list_head *get_weight_strp_lay(list_head* strp_lay_head,int * weight);//依据权重值以及条带分布得到任务节点以及数据块的分布
+int print_weight_strp_lay(P_node_weight p_node_weight_head);//打印权重值链表
 #endif /* DEWHA_H_ */

@@ -417,7 +417,11 @@ void ProvideTaskAlgorithm(int * g_weight,pTaskHead g_pDatanodeTask)
 	list_head * p_temp_blk = NULL;//子链表临时节点
 	pTaskBlock p_temp_task_block = NULL;
 	strp_lay_head = get_strp_lay(g_TaskStartBlockNum);
-
+	if(DEW_DEBUG ==1)
+		{
+			printf("strp_lay g_TaskStartBlocNum %d\n",g_TaskStartBlockNum);
+			print_double_circular(strp_lay_head);
+		}
 	if(DEW_DEBUG==1)printf("inside ProvidTaskAlgorithm \n");
 	weight_strp_lay = get_weight_strp_lay(strp_lay_head,g_weight);
 	if(DEW_DEBUG ==1)
@@ -436,7 +440,7 @@ void ProvideTaskAlgorithm(int * g_weight,pTaskHead g_pDatanodeTask)
 			p_temp_blk = p_temp_blk_head->next;
 			block_num = 0;//初始化节点上数据块个数,0号位置用来存储节点号
 			task[node_num][0] = node_ID;
-			while(p_temp_blk != p_temp_blk_head)//将该节点上的所有数据块添加在任务int task[18][6]里面
+			while(p_temp_blk != p_temp_blk_head)//将该节点上的所有数据块添加在任务int task[18][8]里面
 			{
 				task[node_num][block_num+2] = container_of(p_temp_blk,Nblk_inverted,listblk)->blkID;
 				p_temp_blk = p_temp_blk->next;

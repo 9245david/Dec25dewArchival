@@ -293,6 +293,7 @@ list_head *get_strp_lay(int task_start_block_num)//依据起始块号得到该�
 	Pblk_inverted temp_strp_lay=NULL;
 	list_head *strp_lay_head=NULL;//条带分布十字链表头指针,内无数据
 	strp_lay_head  = (list_head *)malloc(sizeof(list_head));
+	assert(strp_lay_head != NULL);
 	init_list_head(strp_lay_head);//初始化条带分布链表头
 	tempN=0;
 	for(node_id=1;node_id<=RACK_NODE*RACK_NUM;node_id++)//遍历每个节点，判断每个块在不在
@@ -345,17 +346,11 @@ list_head *get_strp_lay(int task_start_block_num)//依据起始块号得到该�
 	if(DEW_DEBUG==1)print_double_circular(strp_lay_head);
 	return strp_lay_head;
 }
-typedef struct nodeWeight{
-	int node_num;
-	int node_weight;
-	list_head *  p_node_in_strp;//节点在条带分布链表中的位置
-	struct nodeWeight *next;
-}N_node_weight,*P_node_weight;
 list_head *get_weight_strp_lay(list_head* strp_lay_head,int * weight)
 //依据三副本的条带数据块分布，和节点权重值表，得到对应的归档条带任务节点数据块分布。
 //假设nodeID 是由1开始的
 {
-	list_head * weight_strp_lay = NULL;
+//	list_head * weight_strp_lay = NULL;
 	list_head * p_temp_node = NULL;
 	int i = 0;
 	int j = 0;
@@ -377,10 +372,12 @@ list_head *get_weight_strp_lay(list_head* strp_lay_head,int * weight)
 	list_head *p_task_sort1,*p_task_sort2,*p_task_sort3;//用于生成的任务节点的排序
 	int length2,length3;//生成的任务节点的块个数，也用于排序
 	p_node_weight_head = (P_node_weight)malloc(sizeof(N_node_weight));
+	assert(p_node_weight_head !=NULL);
 	p_node_weight_head->next = NULL;
 	p_node_weight_tail = p_node_weight_head;
-	weight_strp_lay = (list_head*)malloc(sizeof(list_head));
-	init_list_head(weight_strp_lay);
+	//weight_strp_lay = (list_head*)malloc(sizeof(list_head));
+//	assert(weight_strp_lay !=NULL);
+//	init_list_head(weight_strp_lay);
 	p_temp_node = strp_lay_head->next;
 	while(p_temp_node != strp_lay_head)//将有数据的节点权重值选出来，存在
 	{
@@ -429,6 +426,7 @@ list_head *get_weight_strp_lay(list_head* strp_lay_head,int * weight)
 		}
 		if(flag == 1)break;
 	}
+	if(DEW_DEBUG ==1)print_weight_strp_lay(p_node_weight_head);
 	//权重值和分布得到任务
 	task_strp_lay_head = (list_head *)malloc(sizeof(list_head));
 	init_list_head(task_strp_lay_head);//初始化任务链表头
@@ -437,18 +435,23 @@ list_head *get_weight_strp_lay(list_head* strp_lay_head,int * weight)
 	{
 		//p1 = p_node_weight_head->next;
 		//assert(p1 != NULL);//权值节点遍历一遍之后数据还没有找全
-		if(p1 == NULL)return NULL;//权值节点遍历一遍之后数据还没有找全,即任务的分配结束
+		if(p1 == NULL)
+		{
+			if(DEW_DEBUG == 1)printf("分配完毕，无权重值满足要求\n");
+			return NULL;//权值节点遍历一遍之后数据还没有找全,即任务的分配结束
+		}
 		node_weight_tmp = p1->node_weight;
 		nodeID = p1->node_num;
 		//p_node_weight_head->next = p1->next;
-		p_temp_node = p1->p_node_in_strp;
+		p_temp_node = p1->p_node_in_strp->next;
 	//free(p1);
 
 	node_strp_block = (Pblk_inverted)malloc(sizeof(Nblk_inverted));
+	assert(node_strp_block !=NULL);
 	list_add_tail(&(node_strp_block->listNode),task_strp_lay_head);
 	node_strp_block->blk_nodeID = nodeID;
 	init_list_head(&(node_strp_block->listblk));
-	while((p_temp_node->next != p1->p_node_in_strp)&&(node_weight_tmp > 0))//权值还有，节点上的数据也还有,添加某个节点上的数据块
+	while((p_temp_node != p1->p_node_in_strp)&&(node_weight_tmp > 0))//权值还有，节点上的数据也还有,添加某个节点上的数据块
 	{
 		block_id = container_of(p_temp_node,Nblk_inverted,listblk)->blkID;
 		if(block_exist[(block_id-1)%(EREASURE_N-EREASURE_K)] != 1)
@@ -457,6 +460,7 @@ list_head *get_weight_strp_lay(list_head* strp_lay_head,int * weight)
 			list_add_tail(&(tmp_node_strp_block->listblk),&(node_strp_block->listblk));
 			tmp_node_strp_block->blk_node_offset = container_of(p_temp_node,Nblk_inverted,listblk)->blk_node_offset;
 			tmp_node_strp_block->blkID = container_of(p_temp_node,Nblk_inverted,listblk)->blkID;
+			tmp_node_strp_block->blk_nodeID = nodeID;
 			node_weight_tmp--;
 			block_exist[(block_id-1)%(EREASURE_N-EREASURE_K)] = 1;
 			block_num ++;
@@ -464,6 +468,8 @@ list_head *get_weight_strp_lay(list_head* strp_lay_head,int * weight)
 
 		p_temp_node = p_temp_node->next;
 	}
+	p1->node_weight = node_weight_tmp;
+	g_weight[nodeID-1] = node_weight_tmp;//权重值会更新，每次分配一个条带之后
 	p1 = p1->next;
 	}
 	//给节点权重值进行排序，降序排列
@@ -477,14 +483,14 @@ list_head *get_weight_strp_lay(list_head* strp_lay_head,int * weight)
 	p_task_sort1 = p_task_sort2=p_task_sort3=NULL;
 	for(i = node_num; i>1; i--)//冒泡排序将该条带的任务数据块分布由数据块由多至少排列
 	{
-		p_task_sort1 = weight_strp_lay;
+		p_task_sort1 = task_strp_lay_head;
 		p_task_sort2 = p_task_sort1->next;
 		p_task_sort3 = p_task_sort2->next;
 		flag =1;//默认无交换，循环退出
 		for(j = 0; j < i-1; j++)
 		{
 			length2 = get_length(&(container_of(p_task_sort2,Nblk_inverted,listNode)->listblk));
-			length3 = get_length(&(container_of(p_task_sort2,Nblk_inverted,listNode)->listblk));
+			length3 = get_length(&(container_of(p_task_sort3,Nblk_inverted,listNode)->listblk));
 			if(length2 < length3)
 			{
 				p_task_sort1->next = p_task_sort3;
@@ -498,20 +504,34 @@ list_head *get_weight_strp_lay(list_head* strp_lay_head,int * weight)
 			p_task_sort1 = p_task_sort1->next;
 			p_task_sort2 = p_task_sort1->next;
 			p_task_sort3 = p_task_sort2->next;
-			assert(p_task_sort3 != weight_strp_lay);
 		}
+	//	assert(p_task_sort3 == task_strp_lay_head);
 		if(flag == 1)break;//没有交换产生
 	}
 	if(DEW_DEBUG ==1)
 		{
 			printf("task lay\n");
-			print_double_circular(weight_strp_lay);
+			print_double_circular(task_strp_lay_head);
 		}
 
-	return weight_strp_lay;
+	return task_strp_lay_head;
 
 	}
-
+int print_weight_strp_lay(P_node_weight p_node_weight_head)//打印权重值链表，为单项链表
+{
+	P_node_weight p_node_weight_tmp = NULL;
+	int node_num = 0;
+	assert(p_node_weight_head != NULL);
+	p_node_weight_tmp = p_node_weight_head->next;
+	while(p_node_weight_tmp != NULL)
+	{
+		assert(node_num <= DATANODE_NUMBER);
+		printf("nodeID is %d,node_weight is %d \n ",p_node_weight_tmp->node_num,p_node_weight_tmp->node_weight);
+		p_node_weight_tmp = p_node_weight_tmp->next;
+		node_num ++;
+	}	
+	return 1;
+}
 int get_blk_offset(int local_blkID,int node_id,Pblk_inverted strp_lay)//将数据块号，节点号，以及得到的节点偏移存在strp_lay指向的结构体中
 {
 	strp_lay->blk_nodeID = node_id;//块所在节点
