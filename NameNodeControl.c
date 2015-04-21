@@ -103,6 +103,10 @@ void *handle_request(void * arg)
 	recv = DataTransportRead(connfd,recvbuff,sizeof(nFeedback));
 	if(recv<0)
 	{
+		if(DEW_DEBUG ==2)
+				{
+					fprintf(stderr," namenode recvdata error\n");
+				}
 		printf("namenode recvdata error\n");
 		close(connfd);
 		return NULL;
@@ -131,6 +135,10 @@ void *handle_request(void * arg)
     	//当约定的时间点到达之后发送反馈信息，这样貌似
     		if(recv<0)
     		{
+    			if(DEW_DEBUG ==2)
+    					{
+    						fprintf(stderr," namenode nFeedback error\n");
+    					}
     			printf("namenode nFeedback error\n");
     			close(connfd);
     			return NULL;

@@ -16,7 +16,8 @@
 #define DATANODE_PORT 6001
 #define  BACKLOG 20
 #ifndef DEW_DEBUG
-#define DEW_DEBUG 1
+//#define DEW_DEBUG 1
+#define DEW_DEBUG 2
 #endif
 typedef struct buffDiscript{
 	char * buff;

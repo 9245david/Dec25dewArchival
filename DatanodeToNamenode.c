@@ -75,6 +75,10 @@ int DatanodeRegistOnNamenode(void)
 	assert(sock_DtoN > -1);
 	if(DataTransportRead(sock_DtoN,namenodeAck,7)!=7)
 	{
+		if(DEW_DEBUG ==2)
+		{
+			fprintf(stderr,"welcome from namenode error\n");
+		}
 		printf(" welcome from namenode error\n");
 		close(sock_DtoN);
 		return -1;
@@ -116,6 +120,10 @@ int DatanodeControlwithNamenode(int sock_DtoN)
 	recv = DataTransportRead(sock_DtoN,recvTaskBuff,sizeof(struct timeval));
 	if(recv != sizeof(struct timeval))
 	{
+		if(DEW_DEBUG ==2)
+				{
+					fprintf(stderr,"read time error\n");
+				}
 		printf("read time error\n");
 		return -1;
 	}
@@ -132,6 +140,10 @@ int DatanodeControlwithNamenode(int sock_DtoN)
 		recv = DataTransportRead(sock_DtoN,recvTaskBuff,sizeof(int));//首先接收数据长度参数
 		if(recv != sizeof(int))
 		{
+			if(DEW_DEBUG ==2)
+					{
+						fprintf(stderr,"read task length error\n");
+					}
 			printf("read task length error\n");
 			return -1;
 		}
@@ -141,6 +153,10 @@ int DatanodeControlwithNamenode(int sock_DtoN)
 		    	//接手namenode发送过来的任务
 		    		if(recv != task_length *sizeof(nTaskBlock))
 		    		{
+		    			if(DEW_DEBUG ==2)
+		    					{
+		    						fprintf(stderr,"datanode recvtask error\n");
+		    					}
 		    			printf("datanode recvtask error\n");
 		    			close(sock_DtoN);
 		    			return -1;

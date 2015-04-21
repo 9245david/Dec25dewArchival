@@ -586,6 +586,10 @@ void *handle_request(void * arg)
 		recv = DataTransportRead(connfd,(char*)pChunkTransport,sizeof(nTransportBlock));
 		if(recv<0)
 		{
+			if(DEW_DEBUG ==2)
+					{
+						fprintf(stderr,"datanode recvdata error\n");
+					}
 			printf("datanode recvdata error\n");
 			close(connfd);
 			return NULL;
@@ -597,7 +601,17 @@ void *handle_request(void * arg)
 			pBuffPice = tmpConnectServer->pBuffPice;
 			while(pBuffPice->length ==(BUFF_SIZE/BUFF_PICE_SIZE));
 
-			DataTransportRead(connfd,pBuffPice->buff+(pBuffPice->end)*BUFF_PICE_SIZE,BUFF_PICE_SIZE);
+			recv = DataTransportRead(connfd,pBuffPice->buff+(pBuffPice->end)*BUFF_PICE_SIZE,BUFF_PICE_SIZE);
+			if(recv<0)
+					{
+						if(DEW_DEBUG ==2)
+								{
+									fprintf(stderr,"datanode recvdata error\n");
+								}
+						printf("datanode recvdata 2 error\n");
+						close(connfd);
+						return NULL;
+					}
 			pBuffPice->end = (pBuffPice->end +1)%(BUFF_SIZE/BUFF_PICE_SIZE);
 			pthread_mutex_lock(&(pBuffPice->buffLock));
 			pBuffPice->length = pBuffPice->length +1;

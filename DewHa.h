@@ -30,8 +30,8 @@
 #define BLK_SIZE (64*1024*1024UL) //数据块大小
 #define NODE_BLKNUM 10000 //单节点数据块个数
 
-#define DEW_DEBUG 1
-
+//#define DEW_DEBUG 1
+#define DEW_DEBUG 2
 typedef struct block_lay{
 	int blk_nodeID;//块所在节点号
 	int blk_node_offset;//块所在节点内的偏移（以块为单位）
