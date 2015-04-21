@@ -92,7 +92,7 @@ int DatanodeControlwithNamenode(int sock_DtoN)
 	pFeedback FeedbackDToN = NULL ;
 	long length = sizeof(nFeedback);
 	long recv = 0;
-	//long send = 0;
+	long send = 0;
 	long task_length = 0;
 	char recvTaskBuff[DATA_NAME_MAXLENGTH];
 	int rt = 0;
@@ -114,7 +114,11 @@ int DatanodeControlwithNamenode(int sock_DtoN)
 	
 	if(DEW_DEBUG==1)printf("receive time\n");
 	recv = DataTransportRead(sock_DtoN,recvTaskBuff,sizeof(struct timeval));
-
+	if(recv != sizeof(struct timeval))
+	{
+		printf("read time error\n");
+		return -1;
+	}
 	if(DEW_DEBUG==1)printf("receive time success\n");
 	assert(recv > 0);
 	memcpy(&taskStarttime,recvTaskBuff,sizeof(struct timeval));
@@ -126,11 +130,16 @@ int DatanodeControlwithNamenode(int sock_DtoN)
 	while (TaskRecvFinished(localIPaddress) != 1)
 	{
 		recv = DataTransportRead(sock_DtoN,recvTaskBuff,sizeof(int));//首先接收数据长度参数
+		if(recv != sizeof(int))
+		{
+			printf("read task length error\n");
+			return -1;
+		}
 		    	task_length = *(int *)recvTaskBuff;
 		    	//DataTransportRead(sock_DtoN,recvTaskBuff,task_length);
 		recv = DataTransportRead(sock_DtoN,recvTaskBuff,task_length * sizeof(nTaskBlock));
 		    	//接手namenode发送过来的任务
-		    		if(recv<0)
+		    		if(recv != task_length *sizeof(nTaskBlock))
 		    		{
 		    			printf("datanode recvtask error\n");
 		    			close(sock_DtoN);
@@ -154,7 +163,12 @@ int DatanodeControlwithNamenode(int sock_DtoN)
 		{
 			FeedbackDToN->finishedOrNot =0;
 		}
-		DataTransportWrite(sock_DtoN, (char*)FeedbackDToN, length);
+		send = DataTransportWrite(sock_DtoN, (char*)FeedbackDToN, length);
+		if(send != length)
+		{
+			printf("send feedback error \n");
+			return -1;
+		}
 		pthread_mutex_lock(&lockFeedback);
 		assert(sendFeedback == true);
 		sendFeedback = false;
@@ -226,7 +240,7 @@ void ProcessTask(char *recvTaskBuff,long recv)
 	return;
 	}
 	pthread_task_num = (pthread_t *)malloc(TaskNum * sizeof(pthread_t));
-	assert(pthread_task_num == NULL);
+	assert(pthread_task_num != NULL);
 
 	for(i = 0; i< TaskNum; i++)
 	{//此处应该是并行创建处理单个条带任务的线程

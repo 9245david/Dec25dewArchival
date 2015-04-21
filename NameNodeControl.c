@@ -234,17 +234,22 @@ void SendTaskToDatanode(int connfd)
 	int nodeID = 0;
 	char  * buff_datanode_task = NULL;
 	long send;
+	int * test_length = NULL;
 	nodeID = GetNodeIDFromConnfd(connfd);
 	assert(nodeID >= 0 && nodeID < DATANODE_NUMBER);
 	if(DEW_DEBUG==1)printf("inside SendTaskToDatanode %d\n",nodeID);
 	//taskLength = *(long *)(DatanodeTask[nodeID]);
 	taskLength =(g_pDatanodeTask[nodeID].taskNum)*sizeof(nTaskBlock);
 	//taskLength += sizeof(long);
-	buff_datanode_task = (char*)malloc(taskLength*sizeof(char));
+	buff_datanode_task = (char*)malloc(taskLength*sizeof(char)+sizeof(int));
 	assert(buff_datanode_task != NULL);
 	memcpy(buff_datanode_task,&(g_pDatanodeTask[nodeID].taskNum),g_pDatanodeTask[nodeID].taskNum);
 	memcpy(buff_datanode_task+sizeof(int),g_pDatanodeTask[nodeID].singleStripTask,taskLength);
 	send = DataTransportWrite(connfd,buff_datanode_task, sizeof(int)+taskLength);
+	if(DEW_DEBUG == 1)
+	{
+		printf("task_num is %d,only task_length is %d,ip is %s\n",g_pDatanodeTask[nodeID].taskNum,taskLength,g_nodeIP[nodeID]);
+	}
 	if(send<0)
         {
                 printf("send task to datanode error\n");
@@ -416,6 +421,11 @@ void ProvideTaskAlgorithm(int * g_weight,pTaskHead g_pDatanodeTask)
 	list_head * p_temp_blk_head = NULL;//子链表头节点
 	list_head * p_temp_blk = NULL;//子链表临时节点
 	pTaskBlock p_temp_task_block = NULL;
+	for(i=0;i<DATANODE_NUMBER;i++)
+	for(j=0;j<EREASURE_N - EREASURE_K+2;j++)
+	{
+		task[i][j]=0;
+	}
 	strp_lay_head = get_strp_lay(g_TaskStartBlockNum);
 	if(DEW_DEBUG ==1)
 		{
@@ -470,7 +480,7 @@ void ProvideTaskAlgorithm(int * g_weight,pTaskHead g_pDatanodeTask)
 				j=0;
 				for(i=1;i<node_num;i++)
 				{
-					for(k=0;k<task[1][1];k++)
+					for(k=0;k<task[i][1];k++)
 					{
 						p_temp_task_block->waitedBlock[j++] = task[i][k+2];
 					}
@@ -491,8 +501,8 @@ void ProvideTaskAlgorithm(int * g_weight,pTaskHead g_pDatanodeTask)
 							realloc((g_pDatanodeTask +local_node_ID-1)->singleStripTask,sizeof(nTaskBlock));
 					p_temp_task_block = (g_pDatanodeTask +local_node_ID-1)->singleStripTask;
 					p_temp_task_block->chunkID = g_TaskStartBlockNum/(EREASURE_N-EREASURE_K);
-					for(i=0;i<EREASURE_N;i++)p_temp_task_block->localTaskBlock[i] = -1;
-					for(i=0;i<block_num;i++)p_temp_task_block->localTaskBlock[i] = task[0][i+2];
+					for(j=0;j<EREASURE_N;j++)p_temp_task_block->localTaskBlock[j] = -1;
+					for(j=0;j<block_num;j++)p_temp_task_block->localTaskBlock[j] = task[0][j+2];
 					p_temp_task_block->waitForBlock = 0;
 					p_temp_task_block->encode = 0;
 					p_temp_task_block->waitedBlockType = 0;

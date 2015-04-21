@@ -367,7 +367,7 @@ pSingleBuff AskForMemory()//向内存模块申请内存，需要加锁因为不�
 			assert(tmpMemory !=NULL);
 			list_add_tail(&(tmpMemory->listMemory),&(g_pFreeMemoryList->listMemory));
 			tmpBuff = (char*)malloc(BUFF_SIZE*sizeof(char));
-			assert(tmpBuff ==NULL);
+			assert(tmpBuff !=NULL);
 			tmpSingleBuff = (pSingleBuff)malloc(sizeof(nSingleBuff));
 			assert(tmpSingleBuff != NULL);
 			tmpSingleBuff -> buff = tmpBuff;

@@ -469,7 +469,7 @@ list_head *get_weight_strp_lay(list_head* strp_lay_head,int * weight)
 		p_temp_node = p_temp_node->next;
 	}
 	p1->node_weight = node_weight_tmp;
-	g_weight[nodeID-1] = node_weight_tmp;//权重值会更新，每次分配一个条带之后
+	weight[nodeID-1] = node_weight_tmp;//权重值会更新，每次分配一个条带之后
 	p1 = p1->next;
 	}
 	//给节点权重值进行排序，降序排列

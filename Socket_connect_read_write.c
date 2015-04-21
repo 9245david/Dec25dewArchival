@@ -52,7 +52,8 @@ long DataTransportRead(int sock_fd,char * buffer,long length)
 		{
 			if(errno==EINTR)recvsize = 0;//请求被中断
 				else {
-					perror("read error\n");
+					perror("read error dew\n");
+					fprintf(stderr,"sockfd =%d,buffer = %p,length =%ld\n",sock_fd,buffer,length);	
 					return -1;
 				}
 		}else if (recvsize == 0)break;
@@ -71,6 +72,7 @@ long DataTransportWrite(int sock_fd,char * buffer,long length)
              {
                 if(errno==EINTR)sendsize = 0;
                 else{
+			if(DEW_DEBUG==1)printf("sockfd =%d,buffer = %p,length =%ld",sock_fd,buffer,length);	
                 	perror("write error\n");
                 	return -1;
                 }
