@@ -34,6 +34,7 @@ if(!inet_aton(arg->Namenode_ADDR,&srvaddr.sin_addr))
 
 if(connect(sock_fd,(struct sockaddr*)&srvaddr,sizeof(struct sockaddr))==-1)
 {
+	fprintf(stderr,"error dest addr %s\n",arg->Namenode_ADDR);
 	perror("connect error");
 	exit(-1);
 }
@@ -45,6 +46,8 @@ int64_t DataTransportRead(int32_t sock_fd,char * buffer,int64_t length)
 {
 	int64_t totalsize = 0;
 	int64_t recvsize = 0;
+	assert(length >=0);
+	if(length == 0)return 0;
 	while(totalsize<length)
 	{
 		recvsize=read(sock_fd,buffer+totalsize,length-totalsize);
@@ -56,15 +59,18 @@ int64_t DataTransportRead(int32_t sock_fd,char * buffer,int64_t length)
 					fprintf(stderr,"sockfd =%d,buffer = %p,length =%ld\n",sock_fd,buffer,length);	
 					return -1;
 				}
-		}else if (recvsize == 0)break;
+		}else if (recvsize == 0)continue;
 			totalsize+=recvsize;
 	}
+	assert(totalsize == length);
 	return totalsize;
 }
 int64_t DataTransportWrite(int32_t sock_fd,char * buffer,int64_t length)
 {
         int64_t totalsize = 0;
         int64_t sendsize = 0;
+	assert(length >=0);
+	if(length == 0)return 0;
         while(totalsize<length)
         {
             sendsize=write(sock_fd,buffer+totalsize,length-totalsize);
@@ -72,11 +78,11 @@ int64_t DataTransportWrite(int32_t sock_fd,char * buffer,int64_t length)
              {
                 if(errno==EINTR)sendsize = 0;
                 else{
-			if(DEW_DEBUG==1)printf("sockfd =%d,buffer = %p,length =%ld",sock_fd,buffer,length);	
-                	perror("write error\n");
+			fprintf(stderr,"sockfd =%d,buffer = %p,length =%ld",sock_fd,buffer,length);	
+                	perror("write error dew\n");
                 	return -1;
                 }
-             }else if(sendsize == 0)break;
+             }else if(sendsize == 0)continue;
                 totalsize+=sendsize;
         }
         assert(totalsize == length);

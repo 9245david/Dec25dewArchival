@@ -87,6 +87,7 @@ void *handle_request(void * arg)
 	socklen_t len;
 	int32_t node_num;
 	int32_t semid;
+	int32_t time = 0;
 	connfd = *((int32_t*)arg);
 	free(arg);
 	node_num = GetNodeIDFromConnfd(connfd);
@@ -115,13 +116,15 @@ void *handle_request(void * arg)
 	ProcessDatanodeState(recvbuff, recv, connfd);
 
 	while(ALL_DATANODE_CONNECTED == false)NULL;//所有连接建立
-
+	time =(int32_t)(starttime.tv_sec);
 //	if(DEW_DEBUG==1)printf("ALL_DATANODE_CONNECTED\n");
-	DataTransportWrite(connfd,(char*)&starttime,sizeof(struct timeval));// 统一发送归档开始时间
+//o	DataTransportWrite(connfd,(char*)&starttime,sizeof(struct timeval));// 统一发送归档开始时间
+	 DataTransportWrite(connfd,(char*)(&time),sizeof(int32_t));// 统一发送归档开始时间
 	//
 	len = sizeof(struct sockaddr_in);
 	getpeername(connfd,(struct sockaddr*)&cliaddr,&len);
-	if(DEW_DEBUG ==1)printf("send starttime to %s ,%lds \n",inet_ntoa(cliaddr.sin_addr),starttime.tv_sec);
+	if(DEW_DEBUG > 0)printf("send starttime to %s ,%ds \n",inet_ntoa(cliaddr.sin_addr),time);
+	//return NULL; 
 //	int semid;
     while(TaskSendFinished(connfd) != 1)//所有的归档任务没有派送完
     {
@@ -188,9 +191,9 @@ int32_t handle_connect(int32_t listen_sock)//返回0正常，返回其他值，�
 				         }
 			nodenum--;
 		}
+		gettimeofday(&starttime,NULL);
 		ALL_DATANODE_CONNECTED = true;//所有连接已经建立
 //		close(listen_sock);
-		gettimeofday(&starttime,NULL);
 
 	if(DEW_DEBUG==1)printf("all the node have regist, namenode set the starttime\n");
 		return 0;
@@ -251,7 +254,7 @@ void SendTaskToDatanode(int32_t connfd)
 	//taskLength += sizeof(long);
 	buff_datanode_task = (char*)malloc(taskLength*sizeof(char)+sizeof(int32_t));
 	assert(buff_datanode_task != NULL);
-	//if(DEW_DEBUG >0){printf("real num is %d\n",g_pDatanodeTask[nodeID].taskNum);}
+//	if(DEW_DEBUG >0){printf("real num is %d\n",g_pDatanodeTask[nodeID].taskNum);}
 	memcpy(buff_datanode_task,&(g_pDatanodeTask[nodeID].taskNum),sizeof(int32_t));
 	send = DataTransportWrite(connfd,buff_datanode_task, sizeof(int32_t));
 	if(DEW_DEBUG > 0)
@@ -455,7 +458,7 @@ void ProvideTaskAlgorithm(int32_t * g_weight,pTaskHead g_pDatanodeTask)
 		}
 	if(DEW_DEBUG==1)printf("inside ProvidTaskAlgorithm \n");
 	weight_strp_lay = get_weight_strp_lay(strp_lay_head,g_weight);
-	if(DEW_DEBUG ==1)
+	if(DEW_DEBUG >=1)
 		{
 			printf("task lay\n");
 			print_double_circular(weight_strp_lay);
@@ -539,13 +542,75 @@ void ProvideTaskAlgorithm(int32_t * g_weight,pTaskHead g_pDatanodeTask)
 			}
 
 		g_TaskStartBlockNum = g_TaskStartBlockNum + EREASURE_N - EREASURE_K;
+//*************************
+		if(DEW_DEBUG>=1)
+        	{
+                 	 for(i=0;i< DATANODE_NUMBER;i++)
+                	{
+                        	j = g_pDatanodeTask[i].taskNum;
+                      	 	 printf("node %d,taskNum = %d\n",i,j);
+                        	p_temp_task_block = g_pDatanodeTask[i].singleStripTask;
+                        	for(k=0;k<j;k++)
+                        	{
+                                	print_task_block(p_temp_task_block);
+                                	p_temp_task_block++;
+                                }
+                 	}
+
+        	}
+//**************************
 		if(g_TaskStartBlockNum >= 6)return;
 		strp_lay_head = get_strp_lay(g_TaskStartBlockNum);
 		weight_strp_lay = get_weight_strp_lay(strp_lay_head,g_weight);
 
 	}//while 一次循环对应一个条带的任务分配
 
-
-	if(DEW_DEBUG==1)printf("inside ProvidTaskAlgorithm \n");
-	return ;
+		
+	if(DEW_DEBUG>=1)
+	{
+		  for(i=0;i< DATANODE_NUMBER;i++)
+	        {
+			j = g_pDatanodeTask[i].taskNum;
+       			printf("node %d,taskNum = %d\n",i,j);
+			p_temp_task_block = g_pDatanodeTask[i].singleStripTask;
+			for(k=0;k<j;k++)
+			{
+				print_task_block(p_temp_task_block);
+				p_temp_task_block++;	
+				} 
+       		 }
+		
+		printf("outside ProvidTaskAlgorithm \n");
 	}
+	return ;
+}
+
+int  print_task_block(pTaskBlock p_temp_task_block)
+{
+	int32_t i = 0;
+	int32_t local_num = -1;
+	pTaskBlock tmp_block = NULL;
+	assert(p_temp_task_block != NULL);
+	tmp_block = p_temp_task_block;
+	printf("chunkID %d,",tmp_block->chunkID);
+	printf("localTaskBlock ");
+	for(i=0; i<EREASURE_N; i++)
+	{
+		printf("%d,",tmp_block->localTaskBlock[i]);
+	}
+	printf("waitForBlock %d,",tmp_block->encode);
+	printf("waitedBlockType %x,",tmp_block->waitedBlockType);
+	printf("waitedBlock ");
+	for(i=0;i<EREASURE_N;i++)
+	{
+		printf("%d,",tmp_block->waitedBlock[i]);
+	}
+	printf("\ndestIPNum %d\n",tmp_block->destIPNum);
+	assert(tmp_block->destIPNum <= EREASURE_K);
+	for(i=0;i<tmp_block->destIPNum;i++)
+	{
+		printf("%s,",tmp_block->destIP[i]);
+	}
+	printf("\n");
+	return 1;
+}

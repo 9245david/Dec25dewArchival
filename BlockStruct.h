@@ -29,6 +29,8 @@
 #define IP_LENGTH 15//192.168.0.111,长度会变化192.168.11.111
 #endif
 
+#pragma pack(push) //保存默认的对齐方式
+#pragma pack(1)
 typedef struct taskBlock{
 	int32_t chunkID;
 	//条带号从0开始
@@ -80,5 +82,6 @@ typedef struct transportBlock{
 	//此结构体中是否应该有一个char blockData[transportSize];存储数据，但是C不允许定义变长数组
 }nTransportBlock,*pTransportBlock;
 
+#pragma pack(pop)   //恢复之前的对齐方式
 
 #endif /* BLOCKSTRUCT_H_ */

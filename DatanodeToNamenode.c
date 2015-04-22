@@ -9,11 +9,14 @@ extern void *DataToDataTaskServer(void *arg);
 extern pthread_mutex_t g_memoryLock;
 //extern char * DtoNbuffer ;
 //extern long  DtoNlength ;
-struct timeval oneTasktime;
+struct timeval oneTasktime = {20,0};
 char * localIPaddress;
 bool sendFeedback = false; //全局变量
 pthread_mutex_t lockFeedback;
 struct timeval taskStarttime;
+
+#pragma pack(push)
+#pragma pack(1)
 typedef struct RegistAndTaskFeedback{
 //	 信息1：发送本地剩余带宽，剩余空间大小
 //	 信息2：反馈分配的任务完成度
@@ -26,6 +29,7 @@ typedef struct RegistAndTaskFeedback{
 	int32_t finishedTask ; //在预想时间内完成的数据块的个数
 	int32_t finishedTime ; //如果完成了，提前完成所花费的时间
 }nFeedback,*pFeedback;
+#pragma pack(pop)
 
 int32_t g_finished_task = 0;
 pthread_mutex_t g_finished_task_lock;
@@ -99,6 +103,7 @@ int32_t DatanodeControlwithNamenode(int32_t sock_DtoN)
 	int64_t send = 0;
 	int64_t task_length = 0;
 	int32_t task_num = 0;
+	int32_t recv_time = 0;
 	char recvTaskBuff[DATA_NAME_MAXLENGTH];
 	int rt = 0;
 	pthread_t datanodeTime;
@@ -126,8 +131,10 @@ struct sockaddr_in cliaddr;
 		}
 	
 	if(DEW_DEBUG==1)printf("receive time\n");
-	recv = DataTransportRead(sock_DtoN,recvTaskBuff,sizeof(struct timeval));
-	if(recv != sizeof(struct timeval))
+//	recv = DataTransportRead(sock_DtoN,recvTaskBuff,sizeof(struct timeval));
+	recv = DataTransportRead(sock_DtoN,recvTaskBuff,sizeof(int32_t));
+//	if(recv != sizeof(struct timeval))
+	if(recv != sizeof(int32_t))
 	{
 		if(DEW_DEBUG ==2)
 				{
@@ -138,7 +145,10 @@ struct sockaddr_in cliaddr;
 	}
 	if(DEW_DEBUG==1)printf("receive time success\n");
 	assert(recv > 0);
-	memcpy(&taskStarttime,recvTaskBuff,sizeof(struct timeval));
+	memcpy(&recv_time, recvTaskBuff, sizeof(int32_t));
+	taskStarttime.tv_sec = (long int)recv_time;
+	taskStarttime.tv_usec = 0;	
+//	memcpy(&taskStarttime,recvTaskBuff,sizeof(struct timeval));
 	//处理时间的函数ProcessTime(&taskStarttime);
 	//接收到归档开始时间之后创建一个记录时间的线程，
 	//定时给DatanodeToNamenode线程触发反馈归档进度的请求
@@ -147,13 +157,14 @@ struct sockaddr_in cliaddr;
 	assert(0 == rt);
 	while (TaskRecvFinished(localIPaddress) != 1)
 	{
+		memset(recvTaskBuff,-1,sizeof(char)*DATA_NAME_MAXLENGTH);
 		recv = DataTransportRead(sock_DtoN,recvTaskBuff,sizeof(int32_t));//首先接收数据长度参数
 		if(DEW_DEBUG >0)fprintf(stderr,"recvTaskBuff read task num is %d,local ip %s\n",*(int32_t *)recvTaskBuff,localIPaddress);
 		if(recv != sizeof(int32_t))
 		{
 			if(DEW_DEBUG ==2)
 					{
-						fprintf(stderr,"read task length error\n");
+						fprintf(stderr,"read task length error %ld\n",recv);
 					}
 			printf("read task length error\n");
 			return -1;
@@ -161,7 +172,7 @@ struct sockaddr_in cliaddr;
 		memcpy(&task_num,recvTaskBuff,sizeof(int32_t));
 		  //  	task_length = *(int *)recvTaskBuff;
 		task_length = task_num;
-		if(DEW_DEBUG >0)fprintf(stderr,"read task num is %ld\n",task_length);
+		if(DEW_DEBUG == 1)fprintf(stderr,"read task num is %ld\n",task_length);
 		    	//DataTransportRead(sock_DtoN,recvTaskBuff,task_length);
 		recv = DataTransportRead(sock_DtoN,recvTaskBuff,task_length * sizeof(nTaskBlock));
 		    	//接手namenode发送过来的任务
@@ -232,7 +243,9 @@ void * ProcessTime(void * taskTime)
 	timersub(&timeNow, &tmpTaskStarttime, &archiveAlreadyTime);
 //此处若是接收到taskTime时时间已过去很久，就会出问题，sleepTime会为负。接收的taskTime出错也会出问题
 	timersub(&oneTasktime, &archiveAlreadyTime, &sleepTime);
-	assert((sleepTime.tv_sec >= 0)&&(archiveAlreadyTime.tv_sec <= 10) );
+	if(DEW_DEBUG ==2)fprintf(stderr,"recvTime %ld,timeNow %ld\n",tmpTaskStarttime.tv_sec,timeNow.tv_sec);
+	assert((sleepTime.tv_sec >= 0));
+	assert((archiveAlreadyTime.tv_sec <= 10) );
 	sleep(sleepTime.tv_sec);
 	pthread_mutex_lock(&lockFeedback);
 	sendFeedback = true;

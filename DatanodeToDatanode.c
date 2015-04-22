@@ -86,6 +86,7 @@ void * ProcessChunkTask(void* argv)
 	pTransportBlock pChunkTranport = NULL; //任务中的带的数据块描述信息
 	pSingleBuff * pLocalBuff = NULL;
 	list_head * pSearch = NULL;
+	assert((pChunkTask->destIPNum>=0)&&(pChunkTask->destIPNum<=18));
 	connfdClient = (pConnect*)malloc((pChunkTask->destIPNum) * sizeof(pConnect));
 	//需要连接的服务端个数
 	assert(connfdClient != NULL);
@@ -118,7 +119,7 @@ void * ProcessChunkTask(void* argv)
 	assert(thread_client_num != NULL);
 	if(pChunkTask->encode == 0)//不需编码，即直接发送数据,无需接收数据
 	{
-			assert(localNum == pChunkTask -> destIPNum);
+	//		assert(localNum == pChunkTask -> destIPNum);//出错不是每个目标节点只发送一个数据
 
 			for(i=0;i<localNum;i++)
 			{

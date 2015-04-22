@@ -24,6 +24,8 @@
 #define NAME_PORT 6000
 #define  BACKLOG 20
 
+#pragma pack(push)
+#pragma pack(1)
 typedef struct RegistAndTaskFeedback{
 //	 信息1：发送本地剩余带宽，剩余空间大小
 //	 信息2：反馈分配的任务完成度
@@ -38,7 +40,7 @@ typedef struct RegistAndTaskFeedback{
 }nFeedback,*pFeedback;
 //extern typedef struct RegistAndTaskFeedback;
 //extern typedef nFeedback;
-
+#pragma pack(pop)
 /*
 char g_nodeIP[RACK_NODE*RACK_NUM][IP_LENGTH];//节点号与节点ip
 int g_nodeConnfd[RACK_NODE*RACK_NUM];
@@ -48,7 +50,7 @@ nFeedback g_nodeFeedback[RACK_NODE*RACK_NUM];//节点号与节点反馈信息
 unsigned char g_nodeIP[DATANODE_NUMBER][IP_LENGTH];//节点号与节点ip
 int32_t g_nodeConnfd[DATANODE_NUMBER];
 int32_t g_nodeRegist = 0;//已经注册的节点个数，注册过程中不需要加写锁，因为是while循环串行注册
-nFeedback g_nodeFeedback[DATANODE_NUMBER];//节点号与节点反馈信息
+nFeedback g_nodeFeedback[DATANODE_NUMBER] = {0};//节点号与节点反馈信息
 int32_t g_feedbackVersion[DATANODE_NUMBER] = {0};
 bool ALL_DATANODE_CONNECTED = false;
 struct timeval starttime;
@@ -91,4 +93,5 @@ int32_t g_versionNum = 1;
 void ProvideTaskAlgorithm(int32_t * g_weight,pTaskHead g_pDatanodeTask);
 int32_t ProvideTaskFinished();//生成任务结束,等于1结束，等于0未结束
 void *ProvideTask(void *arg);
+int  print_task_block(pTaskBlock p_temp_task_block);
 #endif /* NAME_NODE_CONTROL_H_ */
