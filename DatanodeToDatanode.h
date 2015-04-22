@@ -21,11 +21,11 @@
 #endif
 typedef struct buffDiscript{
 	char * buff;
-	int start;
-	int end;
-	int length;//已经存的pice数目
-	long buffSize;//8MB
-	long pice;//每一片buff的大小
+	int32_t start;
+	int32_t end;
+	int32_t length;//已经存的pice数目
+	int64_t buffSize;//8MB
+	int64_t pice;//每一片buff的大小
 	pthread_mutex_t buffLock;
 }*pSingleBuff,nSingleBuff;
 
@@ -52,24 +52,24 @@ typedef struct memoryQueue{
 }*pMemory,nMemory;
 typedef struct localData{
 	pSingleBuff pBuffPice;//读取块的内存片
-	int localBlock;//块号
+	int32_t localBlock;//块号
 }*pLocalData,nLocalData;
 
 void * ProcessChunkTask(void* argv);
-pSingleBuff ApplyBuffFromServerConnection(unsigned int waitedBlockID);
-pConnect ApplyForClientConnection(pTaskBlock pChunkTask,int destNum);//依据目的ip地址索要连接
-pSingleBuff ApplyBuffFromLocalData(int localBlock);
+pSingleBuff ApplyBuffFromServerConnection(uint32_t waitedBlockID);
+pConnect ApplyForClientConnection(pTaskBlock pChunkTask,int32_t destNum);//依据目的ip地址索要连接
+pSingleBuff ApplyBuffFromLocalData(int32_t localBlock);
 pSingleBuff AskForMemory();
 void SendBackMemory(pSingleBuff pBuffPice);
 void* DataToDataTaskServer(void*arg);
-void TraslateTaskToTransport(pTaskBlock pChunkTask,int destNum,pTransportBlock pChunkTransport);
-void TraslateTaskToServer(pTaskBlock pChunkTask,int destNum,pTransportBlock pChunkTransport);
+void TraslateTaskToTransport(pTaskBlock pChunkTask,int32_t destNum,pTransportBlock pChunkTransport);
+void TraslateTaskToServer(pTaskBlock pChunkTask,int32_t destNum,pTransportBlock pChunkTransport);
 void *ReadLocalData(void * arg);
 void *SendData(void*arg);
 void EncodeData(pConnectServer* connfdServer,pSingleBuff* pLocalBuff,pConnect* connfdClient,pTaskBlock pChunkTask);
-int handle_connect(int listen_sock);//返回0正常，返回其他值，失败
+int32_t handle_connect(int32_t listen_sock);//返回0正常，返回其他值，失败
 void *handle_request(void * arg);
-off_t FindBlockOffset(int localBlock);
-unsigned long ReadDisk(off_t offset, char * buff, unsigned long length);
+off_t FindBlockOffset(int32_t localBlock);
+uint64_t ReadDisk(off_t offset, char * buff, uint64_t length);
 
 #endif /* DATANODETODATANODE_H_ */

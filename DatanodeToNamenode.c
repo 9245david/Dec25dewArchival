@@ -21,15 +21,15 @@ typedef struct RegistAndTaskFeedback{
 	double availableBandwidth;//可用带宽
 	double wholeStorageSpace;//MB
 	double availableStorageSpace;
-	int finishedOrNot ;//如果为1表示分配的任务已经完成，为0表示没有完成，只有当第一次注册时默认为1不是这个含义
-	int allocatedTask ;//被分配的任务数量，即数据块的个数
-	int finishedTask ; //在预想时间内完成的数据块的个数
-	int finishedTime ; //如果完成了，提前完成所花费的时间
+	int32_t finishedOrNot ;//如果为1表示分配的任务已经完成，为0表示没有完成，只有当第一次注册时默认为1不是这个含义
+	int32_t allocatedTask ;//被分配的任务数量，即数据块的个数
+	int32_t finishedTask ; //在预想时间内完成的数据块的个数
+	int32_t finishedTime ; //如果完成了，提前完成所花费的时间
 }nFeedback,*pFeedback;
 
-int g_finished_task = 0;
+int32_t g_finished_task = 0;
 pthread_mutex_t g_finished_task_lock;
-int main(int argc,char** argv)
+int32_t main(int32_t argc,char** argv)
 {
 	pthread_mutex_init(&g_finished_task_lock,NULL);
 	PnamenodeID = (PNamenodeID)malloc(sizeof(NamenodeID));
@@ -42,8 +42,8 @@ int main(int argc,char** argv)
 	}
 void * DatanodeToNamenode(void * arg)
 {
-	int sock_DtoN;
-	int rt = 0;
+	int32_t sock_DtoN;
+	int32_t rt = 0;
 	pthread_t pthread_server;
 	pthread_mutex_init(&lockFeedback,NULL);
 	pthread_mutex_init(&g_memoryLock,NULL);
@@ -59,11 +59,11 @@ void * DatanodeToNamenode(void * arg)
 
 	}
 
-int DatanodeRegistOnNamenode(void)
+int32_t DatanodeRegistOnNamenode(void)
 //连接namenode节点，在namenode上注册本datanode,主要是将ip与连接套接字一一对应
 //如果想写的更全面，应该还有本地所有数据块的id注册在namenode上，本次暂不实现该功能，工作量略大，先实现框架
 {
-	int sock_DtoN;
+	int32_t sock_DtoN;
 	char namenodeAck[8]={};
 	struct sockaddr_in cliaddr;
 	socklen_t len;
@@ -88,19 +88,28 @@ int DatanodeRegistOnNamenode(void)
    // close(sock_DtoN);//所有任务完成了才能关闭
 	}
 
-int DatanodeControlwithNamenode(int sock_DtoN)
+int32_t DatanodeControlwithNamenode(int32_t sock_DtoN)
 //依据连接套接字与namenode通信
 //接收namenode分配过来的任务，并且定时反馈任务的完成度
 {
 
 	pFeedback FeedbackDToN = NULL ;
-	long length = sizeof(nFeedback);
-	long recv = 0;
-	long send = 0;
-	long task_length = 0;
+	int64_t length = sizeof(nFeedback);
+	int64_t recv = 0;
+	int64_t send = 0;
+	int64_t task_length = 0;
+	int32_t task_num = 0;
 	char recvTaskBuff[DATA_NAME_MAXLENGTH];
 	int rt = 0;
 	pthread_t datanodeTime;
+////
+struct sockaddr_in cliaddr;
+        socklen_t len;
+        len = sizeof(struct sockaddr_in);
+        getsockname(sock_DtoN,(struct sockaddr*)&cliaddr,&len);
+        localIPaddress = inet_ntoa(cliaddr.sin_addr);
+        printf("local ip is %s\n",localIPaddress);
+////
 	if(DEW_DEBUG==1)printf("inside DatanodeControlwithNamenode\n");
 	assert(sock_DtoN > 0);
 	FeedbackDToN = (pFeedback)malloc(sizeof(nFeedback));
@@ -133,12 +142,14 @@ int DatanodeControlwithNamenode(int sock_DtoN)
 	//处理时间的函数ProcessTime(&taskStarttime);
 	//接收到归档开始时间之后创建一个记录时间的线程，
 	//定时给DatanodeToNamenode线程触发反馈归档进度的请求
+	if(DEW_DEBUG ==2)fprintf(stderr,"recv starttime ,%lds,local ip %s\n",taskStarttime.tv_sec,localIPaddress);
 	rt = pthread_create(&datanodeTime, NULL, &ProcessTime, (void*)(&taskStarttime));
 	assert(0 == rt);
 	while (TaskRecvFinished(localIPaddress) != 1)
 	{
-		recv = DataTransportRead(sock_DtoN,recvTaskBuff,sizeof(int));//首先接收数据长度参数
-		if(recv != sizeof(int))
+		recv = DataTransportRead(sock_DtoN,recvTaskBuff,sizeof(int32_t));//首先接收数据长度参数
+		if(DEW_DEBUG >0)fprintf(stderr,"recvTaskBuff read task num is %d,local ip %s\n",*(int32_t *)recvTaskBuff,localIPaddress);
+		if(recv != sizeof(int32_t))
 		{
 			if(DEW_DEBUG ==2)
 					{
@@ -147,7 +158,10 @@ int DatanodeControlwithNamenode(int sock_DtoN)
 			printf("read task length error\n");
 			return -1;
 		}
-		    	task_length = *(int *)recvTaskBuff;
+		memcpy(&task_num,recvTaskBuff,sizeof(int32_t));
+		  //  	task_length = *(int *)recvTaskBuff;
+		task_length = task_num;
+		if(DEW_DEBUG >0)fprintf(stderr,"read task num is %ld\n",task_length);
 		    	//DataTransportRead(sock_DtoN,recvTaskBuff,task_length);
 		recv = DataTransportRead(sock_DtoN,recvTaskBuff,task_length * sizeof(nTaskBlock));
 		    	//接手namenode发送过来的任务
@@ -195,7 +209,7 @@ int DatanodeControlwithNamenode(int sock_DtoN)
 	return 1;
 	}
 
-int TaskRecvFinished(char * localIPaddress)
+int32_t TaskRecvFinished(char * localIPaddress)
 {
 	//任务接收完成，与否，每个数据节点的参数是本地的iｐ地址，因为iｐ可以标识不同的节点
 	//是 返回1 ，否返回0, 可以有namenode 结束任务发送时发送标志过来
@@ -216,7 +230,9 @@ void * ProcessTime(void * taskTime)
 	memcpy(&tmpTaskStarttime, (struct timeval*)taskTime, sizeof(struct timeval));
 	gettimeofday(&timeNow,NULL);
 	timersub(&timeNow, &tmpTaskStarttime, &archiveAlreadyTime);
+//此处若是接收到taskTime时时间已过去很久，就会出问题，sleepTime会为负。接收的taskTime出错也会出问题
 	timersub(&oneTasktime, &archiveAlreadyTime, &sleepTime);
+	assert((sleepTime.tv_sec >= 0)&&(archiveAlreadyTime.tv_sec <= 10) );
 	sleep(sleepTime.tv_sec);
 	pthread_mutex_lock(&lockFeedback);
 	sendFeedback = true;
@@ -239,14 +255,14 @@ void * ProcessTime(void * taskTime)
 	return NULL;
 	}
 
-void ProcessTask(char *recvTaskBuff,long recv)
+void ProcessTask(char *recvTaskBuff,int64_t recv)
 //pthread_task_num线程返回表示该条带的任务完成（其实是编码完成，但是也几乎等于完成了，因为每编码一个块就会立即发送）
 {
-	int TaskNum = 0;
-	int i = 0;
+	int32_t TaskNum = 0;
+	int32_t i = 0;
 	pthread_t * pthread_task_num = NULL;
 
-	int rt = 0;
+	int32_t rt = 0;
 	pTaskBlock pChunkTask = NULL;
 	assert(recv % sizeof(nTaskBlock) == 0);
 	TaskNum = recv / sizeof(nTaskBlock);

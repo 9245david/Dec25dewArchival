@@ -10,9 +10,9 @@
 
 //返回sockfd,输入参数arg,可以将其设置为namenodeID的指针，
 //这样就不需要用全局变量了namenodeID
-int ClientConnectToServer(PNamenodeID arg)
+int32_t ClientConnectToServer(PNamenodeID arg)
 {
-int sock_fd;
+int32_t sock_fd;
 struct sockaddr_in srvaddr;
 //struct sockaddr_in cliaddr;
 if((sock_fd=socket(AF_INET,SOCK_STREAM,0))==-1)
@@ -41,10 +41,10 @@ return sock_fd;
 }
 
 /*传输数据,输入参数为建立了连接的sock_fd,存储数据的buffer,数据传输的长度length*/
-long DataTransportRead(int sock_fd,char * buffer,long length)
+int64_t DataTransportRead(int32_t sock_fd,char * buffer,int64_t length)
 {
-	long totalsize = 0;
-	long recvsize = 0;
+	int64_t totalsize = 0;
+	int64_t recvsize = 0;
 	while(totalsize<length)
 	{
 		recvsize=read(sock_fd,buffer+totalsize,length-totalsize);
@@ -61,10 +61,10 @@ long DataTransportRead(int sock_fd,char * buffer,long length)
 	}
 	return totalsize;
 }
-long DataTransportWrite(int sock_fd,char * buffer,long length)
+int64_t DataTransportWrite(int32_t sock_fd,char * buffer,int64_t length)
 {
-        long totalsize = 0;
-        long sendsize = 0;
+        int64_t totalsize = 0;
+        int64_t sendsize = 0;
         while(totalsize<length)
         {
             sendsize=write(sock_fd,buffer+totalsize,length-totalsize);

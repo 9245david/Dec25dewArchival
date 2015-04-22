@@ -11,11 +11,11 @@ Pblk_inverted g_Pblk_invert = NULL;
 //对于所有已存在的数据块的位置反向索引，块标识1开始，偏移0开始
 list_head  g_PclusterAchival[RACK_NODE*RACK_NUM];
 //十八个节点的归档分布头节点
- int blk_id = 0;
-int single_node_mapLength=0;
-int main1(int argc, char **argv)
+ int32_t blk_id = 0;
+int32_t single_node_mapLength=0;
+int32_t main1(int32_t argc, char **argv)
 {
-    int err=0;	
+    int32_t err=0;	
 	//printf("0x80 size %d\n",sizeof(0x80));
     if(init_cluster()<0)
 	{
@@ -30,17 +30,17 @@ int main1(int argc, char **argv)
 	 return 1;
 }
 
-int init_cluster()
+int32_t init_cluster()
 {
-    int i =0 ;
-	int j=0;
-	int local_blkID = 0;
-	int blk_location = 0;//数据块分布在哪个节点1~18
-	int rack_location = 0;//数据分块在哪个机架1~3
-	int rack_replicate = 0;//在机架上的副本数
-	int node_replicate = 0;//在节点上的副本数
-	int node_blkOffset = 0;//单个节点上存储了多少个块，也是1开始，0是记录该节点块个数的
-	int rack_blknum = 0; //单个机架上存储了多少个块
+    int32_t i =0 ;
+	int32_t j=0;
+	int32_t local_blkID = 0;
+	int32_t blk_location = 0;//数据块分布在哪个节点1~18
+	int32_t rack_location = 0;//数据分块在哪个机架1~3
+	int32_t rack_replicate = 0;//在机架上的副本数
+	int32_t node_replicate = 0;//在节点上的副本数
+	int32_t node_blkOffset = 0;//单个节点上存储了多少个块，也是1开始，0是记录该节点块个数的
+	int32_t rack_blknum = 0; //单个机架上存储了多少个块
 	char * p_node_bit = NULL;
 	char * p_rack_bit = NULL;
 //	printf("input the block num (<%d): ",NODE_BLKNUM*RACK_NODE*RACK_NUM/3);
@@ -176,35 +176,35 @@ int init_cluster()
     
 }
 
-int check_node_map(int nodeNum,int blkID)//依据节点号(K=6时1~18)和块编号判断块是否存在该节点0,1
+int32_t check_node_map(int32_t nodeNum,int32_t blkID)//依据节点号(K=6时1~18)和块编号判断块是否存在该节点0,1
 {
 	char * p_node_bit = NULL;
 	char result=0;
 	//char * p_rack_bit = NULL;
 	p_node_bit = (Node_bit_map+single_node_mapLength*(nodeNum-1)+(blkID-1)/8);
 	result = (*p_node_bit)>>((8-(blkID-1)%8)-1)&0x1;//更新node位图
-	return (int)result;
+	return (int32_t)result;
 }
 
-int check_rack_map(int rackNum,int blkID)//依据机架号(1~3)和块编号判断块在该机架上的个数，限制为0,1,2
+int32_t check_rack_map(int32_t rackNum,int32_t blkID)//依据机架号(1~3)和块编号判断块在该机架上的个数，限制为0,1,2
 {
     char * p_rack_bit = NULL;
 	char result=0;
     p_rack_bit = (Rack_bit_map+single_node_mapLength*(rackNum-1)+(blkID-1)/4);
 	result = ((*p_rack_bit)&(0xE0>>(blkID-1)%4*2))>>((6-blkID-1)%4*2);
-	return (int)result;
+	return (int32_t)result;
 }
 
-int Heter_arch_lay()//此处RACK_NODE 实际应为K值，正好都为6，代替
+int32_t Heter_arch_lay()//此处RACK_NODE 实际应为K值，正好都为6，代替
 {
-	int strp_num=0;//striple num
-	int strp_id = 0;//条带标识
-	int node_id = 0;//节点标识
-	int strp_innerID=0;//某个blkID在 其所在条带上对应的位置0~5
-	int local_blkID = 0;//本地变量，块标示
-	int tempN=0;//  
-	int tempB=0;
-	int i=0;
+	int32_t strp_num=0;//striple num
+	int32_t strp_id = 0;//条带标识
+	int32_t node_id = 0;//节点标识
+	int32_t strp_innerID=0;//某个blkID在 其所在条带上对应的位置0~5
+	int32_t local_blkID = 0;//本地变量，块标示
+	int32_t tempN=0;//  
+	int32_t tempB=0;
+	int32_t i=0;
 	//int *locate = NULL;
 	Pblk_inverted strp_lay=NULL;//条带分布十字链表
 	Pblk_inverted temp_strp_lay=NULL;
@@ -280,15 +280,15 @@ int Heter_arch_lay()//此处RACK_NODE 实际应为K值，正好都为6，代替
 		return 1;
 }
 
-list_head *get_strp_lay(int task_start_block_num)//依据起始块号得到该条带的分布.listNode,十字链表首节点无数据，只有节点号
+list_head *get_strp_lay(int32_t task_start_block_num)//依据起始块号得到该条带的分布.listNode,十字链表首节点无数据，只有节点号
 //task_start_block_num默认初始块号为0开始，但是local_blkID是1开始，此处写的有点纠结
 {
-	int tempN=0;//
-	int tempB=0;
-	//int strp_id = 0;//条带标识
-	int node_id = 0;//节点标识
-	int strp_innerID=0;//某个blkID在 其所在条带上对应的位置0~5
-	int local_blkID = 0;//本地变量，块标示
+	int32_t tempN=0;//
+	int32_t tempB=0;
+	//int32_t strp_id = 0;//条带标识
+	int32_t node_id = 0;//节点标识
+	int32_t strp_innerID=0;//某个blkID在 其所在条带上对应的位置0~5
+	int32_t local_blkID = 0;//本地变量，块标示
 	Pblk_inverted strp_lay=NULL;//条带分布十字链表
 	Pblk_inverted temp_strp_lay=NULL;
 	list_head *strp_lay_head=NULL;//条带分布十字链表头指针,内无数据
@@ -346,21 +346,21 @@ list_head *get_strp_lay(int task_start_block_num)//依据起始块号得到该�
 	if(DEW_DEBUG==1)print_double_circular(strp_lay_head);
 	return strp_lay_head;
 }
-list_head *get_weight_strp_lay(list_head* strp_lay_head,int * weight)
+list_head *get_weight_strp_lay(list_head* strp_lay_head,int32_t * weight)
 //依据三副本的条带数据块分布，和节点权重值表，得到对应的归档条带任务节点数据块分布。
 //假设nodeID 是由1开始的
 {
 //	list_head * weight_strp_lay = NULL;
 	list_head * p_temp_node = NULL;
-	int i = 0;
-	int j = 0;
-	int flag = 0;// 冒泡过程有交换数据则为0,没有交换数据则为1,没有交换即退出
-	int nodeID = 0; //节点号
-	int node_num = 0;//包含了数据块的节点数目
-	int node_weight_tmp = 0;
-	int block_id = 0;//系统block_id 由1开始
-	int block_num = 0;//等于6时说明条带的任务列表生成完毕
-	int block_exist[EREASURE_N-EREASURE_K] = {0};//块已经存在对应的条带内偏移为1,否则为0
+	int32_t i = 0;
+	int32_t j = 0;
+	int32_t flag = 0;// 冒泡过程有交换数据则为0,没有交换数据则为1,没有交换即退出
+	int32_t nodeID = 0; //节点号
+	int32_t node_num = 0;//包含了数据块的节点数目
+	int32_t node_weight_tmp = 0;
+	int32_t block_id = 0;//系统block_id 由1开始
+	int32_t block_num = 0;//等于6时说明条带的任务列表生成完毕
+	int32_t block_exist[EREASURE_N-EREASURE_K] = {0};//块已经存在对应的条带内偏移为1,否则为0
 	P_node_weight p_node_weight_head = NULL;//权值链表首节点
 	P_node_weight p_node_weight_tmp = NULL;//中间临时节点
 	P_node_weight p_node_weight_tail = NULL;//尾节点
@@ -370,7 +370,7 @@ list_head *get_weight_strp_lay(list_head* strp_lay_head,int * weight)
 	Pblk_inverted node_strp_block=NULL;//一个节点上的块链表
 	Pblk_inverted tmp_node_strp_block=NULL;
 	list_head *p_task_sort1,*p_task_sort2,*p_task_sort3;//用于生成的任务节点的排序
-	int length2,length3;//生成的任务节点的块个数，也用于排序
+	int32_t length2,length3;//生成的任务节点的块个数，也用于排序
 	p_node_weight_head = (P_node_weight)malloc(sizeof(N_node_weight));
 	assert(p_node_weight_head !=NULL);
 	p_node_weight_head->next = NULL;
@@ -517,10 +517,10 @@ list_head *get_weight_strp_lay(list_head* strp_lay_head,int * weight)
 	return task_strp_lay_head;
 
 	}
-int print_weight_strp_lay(P_node_weight p_node_weight_head)//打印权重值链表，为单项链表
+int32_t print_weight_strp_lay(P_node_weight p_node_weight_head)//打印权重值链表，为单项链表
 {
 	P_node_weight p_node_weight_tmp = NULL;
-	int node_num = 0;
+	int32_t node_num = 0;
 	assert(p_node_weight_head != NULL);
 	p_node_weight_tmp = p_node_weight_head->next;
 	while(p_node_weight_tmp != NULL)
@@ -532,7 +532,7 @@ int print_weight_strp_lay(P_node_weight p_node_weight_head)//打印权重值链�
 	}	
 	return 1;
 }
-int get_blk_offset(int local_blkID,int node_id,Pblk_inverted strp_lay)//将数据块号，节点号，以及得到的节点偏移存在strp_lay指向的结构体中
+int32_t get_blk_offset(int32_t local_blkID,int32_t node_id,Pblk_inverted strp_lay)//将数据块号，节点号，以及得到的节点偏移存在strp_lay指向的结构体中
 {
 	strp_lay->blk_nodeID = node_id;//块所在节点
 	strp_lay->blkID = local_blkID;//数据块标识	
@@ -582,10 +582,10 @@ list_head *check_nodeInList(list_head *p_head_check,list_head *p_blk)
 	return NULL;
 }
 
-int get_length(list_head *p_head)
+int32_t get_length(list_head *p_head)
 //得到链表长度,不算空表头
 {
-	int i;
+	int32_t i;
 	list_head *p_temp_head=NULL;
 	
 	p_temp_head=p_head->next;
@@ -602,13 +602,13 @@ int get_length(list_head *p_head)
 		将删除的存储节点添加到g_PclusterAchival中
 		删除其他节点中重复数据块（可能是所有数据块）
 		*/
-int least_blk(list_head* strp_lay_head)
+int32_t least_blk(list_head* strp_lay_head)
 {
-	int nodeCount =0;//含有该条带数据块的节点个数
-	int nodeBlkCount = 0;//单节点块个数
-	int maxBlkCount = 0;//最大块数 
-	int maxBlkNode = 0;//最大块数的节点号
-	int totalBlkCount = 0;//收集的块个数上限K=6
+	int32_t nodeCount =0;//含有该条带数据块的节点个数
+	int32_t nodeBlkCount = 0;//单节点块个数
+	int32_t maxBlkCount = 0;//最大块数 
+	int32_t maxBlkNode = 0;//最大块数的节点号
+	int32_t totalBlkCount = 0;//收集的块个数上限K=6
 	list_head *p_Head_node=NULL;//每个子链的listNode 头节点
 	list_head *p_max_node = NULL;//最长的子链listNode头结点
 	list_head *p_temp_node = NULL;//删除节点时的临时指针
@@ -617,7 +617,7 @@ int least_blk(list_head* strp_lay_head)
 	list_head *p_del_blk=NULL;//用于遍历最长子链，依次在剩余十字链表中删除
 	
 	list_head *p_repDel = NULL;//需要删除的重复数据块标识listblk
-	int i=0;
+	int32_t i=0;
 	p_Head_node = strp_lay_head->next;
 	
 	nodeCount = get_length(strp_lay_head);
@@ -694,11 +694,11 @@ int least_blk(list_head* strp_lay_head)
 	return 1;
 }
 
-int Print_cluster_lay()//打印集群节点数据块分布
+int32_t Print_cluster_lay()//打印集群节点数据块分布
 {
-	int i =0;
-	int j =0;
-	int cluster_line =0;
+	int32_t i =0;
+	int32_t j =0;
+	int32_t cluster_line =0;
 	cluster_line = cluster_lay[0][0];
 	printf("第一行为每个节点中数据的块数\n");
 	for(i=1;i<18;i++)
@@ -722,9 +722,9 @@ int Print_cluster_lay()//打印集群节点数据块分布
 	return 1;
 }
 
-int print_clusterAchival()
+int32_t print_clusterAchival()
 {
-	int i = 0;
+	int32_t i = 0;
 	list_head *p_Head_node=NULL;//每个子链的listNode 头节点
 	list_head *p_Head_blk=NULL;
 	list_head *p_temp_blk=NULL;
@@ -746,9 +746,9 @@ int print_clusterAchival()
 	return 1;
 }
 
-int print_blk_invert()
+int32_t print_blk_invert()
 {
-	int i = 0;
+	int32_t i = 0;
 	Pblk_inverted PTemp=NULL;
 	for(i=0;i<3*blk_id;i++)
 	{
@@ -760,7 +760,7 @@ int print_blk_invert()
 	return 1;
 }
 
-int print_double_circular(list_head* strp_lay_head)
+int32_t print_double_circular(list_head* strp_lay_head)
 {
 	list_head *p_Head_node=NULL;//每个子链的listNode 头节点
 	list_head *p_Head_blk=NULL;//每个子链的listblk 头节点

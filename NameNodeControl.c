@@ -19,14 +19,14 @@
 FILE* logFile = NULL;//打开一个已经存在的文件
 pthread_mutex_t logFileLock;
 key_t key_task ;
-int main(int argc,char**argv)
+int32_t main(int32_t argc,char**argv)
 {
-	int i;
+	int32_t i;
 	pthread_t pthread_provide_task;
-	int rt ;
+	int32_t rt ;
 	unsigned short sem_init_array[DATANODE_NUMBER] ={0};
 
-	int semid;
+	int32_t semid;
 	 key_task = ftok(".", 1);
 	semid = sem_create(key_task,DATANODE_NUMBER);
 	sem_setall(semid,sem_init_array);
@@ -45,10 +45,10 @@ int main(int argc,char**argv)
 	fclose(logFile);
 	sem_d(semid);
 }
-int NamenodeControlServer()
+int32_t NamenodeControlServer()
 {
-	int listenfd;
-	int on,ret;
+	int32_t listenfd;
+	int32_t on,ret;
 //	socklen_t len;
 	struct sockaddr_in servaddr;
 	listenfd = socket(AF_INET,SOCK_STREAM,0);
@@ -78,16 +78,16 @@ int NamenodeControlServer()
 void *handle_request(void * arg)
 //接受数据，根据不同类型的数据抛至对应的处理程序，每一个datanode对应一个这样的线程
 {
-	int connfd ;
+	int32_t connfd ;
 	char  recvbuff[DATA_NAME_MAXLENGTH];
 	char sendbuff[DATA_NAME_MAXLENGTH];
-	long recv,send;
-	long task_length = 0;
+	int64_t recv,send;
+	int64_t task_length = 0;
 	struct sockaddr_in cliaddr;
 	socklen_t len;
-	int node_num;
-	int semid;
-	connfd = *((int*)arg);
+	int32_t node_num;
+	int32_t semid;
+	connfd = *((int32_t*)arg);
 	free(arg);
 	node_num = GetNodeIDFromConnfd(connfd);
 	semid = sem_openid(key_task);
@@ -154,16 +154,16 @@ void *handle_request(void * arg)
 	}
 
 
-int handle_connect(int listen_sock)//返回0正常，返回其他值，失败
+int32_t handle_connect(int32_t listen_sock)//返回0正常，返回其他值，失败
 {
-		int * Pconnfd;
+		int32_t * Pconnfd;
 		socklen_t len;
-		int i;
+		int32_t i;
 		struct sockaddr_in cliaddr;
 		//pthread_t  *pthread_node_num = NULL;
-		int rt;
+		int32_t rt;
 		len = sizeof(cliaddr);
-		int nodenum = DATANODE_NUMBER;
+		int32_t nodenum = DATANODE_NUMBER;
 		logFile = fopen("TaskFeedbackLog.log","w");
 		assert(logFile!=NULL);
 		pthread_mutex_init(&logFileLock,NULL);
@@ -172,7 +172,7 @@ int handle_connect(int listen_sock)//返回0正常，返回其他值，失败
 		if(DEW_DEBUG ==1)printf("等待节点注册\n");
 		while((nodenum)>0)//等待所有datanode连接
 		{
-			Pconnfd = (int*)malloc(sizeof(int));
+			Pconnfd = (int32_t*)malloc(sizeof(int32_t));
 			*Pconnfd = accept(listen_sock,(struct sockaddr*)&cliaddr,&len);
 			if (-1 != *Pconnfd)
 				printf("server: got connection from client %s \n",inet_ntoa(cliaddr.sin_addr));
@@ -195,7 +195,7 @@ int handle_connect(int listen_sock)//返回0正常，返回其他值，失败
 	if(DEW_DEBUG==1)printf("all the node have regist, namenode set the starttime\n");
 		return 0;
 	}
-void NodeRegist(int nodeConnfd,char *nodeIP,int nodeNum)
+void NodeRegist(int32_t nodeConnfd,char *nodeIP,int32_t nodeNum)
 /*
  * 节点号与套接字对应关系，节点号与节点IP对应关系，节点号与feedback版本对应关系
  * 参数nodeConnfd 为datanode节点连接套接字
@@ -209,15 +209,15 @@ void NodeRegist(int nodeConnfd,char *nodeIP,int nodeNum)
 	if(DEW_DEBUG == 1)printf("节点号%d,IP %s 注册\n",nodeNum-1,nodeIP);
 
 	}
-void ProcessDatanodeState(char * buff, long length, int connfd)
+void ProcessDatanodeState(char * buff, int64_t length, int32_t connfd)
 /*
  * 将状态信息以及任务完成度提交给归档管理模块，用与生成所有节点的任务
  * buff为Namenode接收的Datanode的反馈信息
- * long 为反馈信息buff的长度
+ * int64_t 为反馈信息buff的长度
  * connfd 为datanode节点连接套接字
  */
 {
-	int i = 0;
+	int32_t i = 0;
 	for(i = 0; i < DATANODE_NUMBER; i++)
 	{
 		if(g_nodeConnfd[i] == connfd)break;
@@ -229,7 +229,7 @@ void ProcessDatanodeState(char * buff, long length, int connfd)
 
 	return ;
 	}
-void SendTaskToDatanode(int connfd)
+void SendTaskToDatanode(int32_t connfd)
 //所有节点的任务信息生成之后，每个节点的任务（没有任务的接受空任务）,每个节点连接对应一个节点
 /*
  *
@@ -238,25 +238,38 @@ void SendTaskToDatanode(int connfd)
  *	这样对于feedback的同步g_feedbackVersion的判断机制也需要重新设计
  */
 {
-	int taskLength = 0;
-	int nodeID = 0;
+	int32_t taskLength = 0;
+	int32_t nodeID = 0;
 	char  * buff_datanode_task = NULL;
-	long send;
-	int * test_length = NULL;
+	int64_t send;
+	int32_t test_length = -1;
 	nodeID = GetNodeIDFromConnfd(connfd);
 	assert(nodeID >= 0 && nodeID < DATANODE_NUMBER);
 	if(DEW_DEBUG==1)printf("inside SendTaskToDatanode %d\n",nodeID);
 	//taskLength = *(long *)(DatanodeTask[nodeID]);
 	taskLength =(g_pDatanodeTask[nodeID].taskNum)*sizeof(nTaskBlock);
 	//taskLength += sizeof(long);
-	buff_datanode_task = (char*)malloc(taskLength*sizeof(char)+sizeof(int));
+	buff_datanode_task = (char*)malloc(taskLength*sizeof(char)+sizeof(int32_t));
 	assert(buff_datanode_task != NULL);
-	memcpy(buff_datanode_task,&(g_pDatanodeTask[nodeID].taskNum),g_pDatanodeTask[nodeID].taskNum);
-	memcpy(buff_datanode_task+sizeof(int),g_pDatanodeTask[nodeID].singleStripTask,taskLength);
-	send = DataTransportWrite(connfd,buff_datanode_task, sizeof(int)+taskLength);
-	if(DEW_DEBUG == 1)
+	//if(DEW_DEBUG >0){printf("real num is %d\n",g_pDatanodeTask[nodeID].taskNum);}
+	memcpy(buff_datanode_task,&(g_pDatanodeTask[nodeID].taskNum),sizeof(int32_t));
+	send = DataTransportWrite(connfd,buff_datanode_task, sizeof(int32_t));
+	if(DEW_DEBUG > 0)
 	{
 		printf("task_num is %d,only task_length is %d,ip is %s\n",g_pDatanodeTask[nodeID].taskNum,taskLength,g_nodeIP[nodeID]);
+	}
+	if(send<0)
+        {
+                printf("send task to datanode error\n");
+                close(connfd);
+                return ;
+        }
+	memcpy(buff_datanode_task,g_pDatanodeTask[nodeID].singleStripTask,taskLength);
+	send = DataTransportWrite(connfd,buff_datanode_task,taskLength);
+	if(DEW_DEBUG >0)
+	{
+//		printf("buff num is%d\n",*(int *)buff_datanode_task);
+		printf("task_length is %d,ip is %s\n",taskLength,g_nodeIP[nodeID]);
 	}
 	if(send<0)
         {
@@ -268,7 +281,7 @@ void SendTaskToDatanode(int connfd)
 	return ;
 	}
 
-int TaskSendFinished(int connfd)
+int32_t TaskSendFinished(int32_t connfd)
 //检查connfd对应的datanode的所有归档任务是否完成，如果完成，就返回1;否则返回0
 {
 	if(g_TaskStartBlockNum >= 6)return 1;
@@ -277,7 +290,7 @@ int TaskSendFinished(int connfd)
 	//return 0;
 
 	}
-void WriteTaskFeedbackLog(int connfd,char *recvbuff,unsigned long length)
+void WriteTaskFeedbackLog(int32_t connfd,char *recvbuff,uint64_t length)
 {
 	pFeedback FeedbackDToN = (pFeedback)recvbuff;
 	//int logFd = open("TaskFeedbackLog.log",O_WRONLY|O_CREAT,0666);//使用O_CREAT时必须用参数mode = 0666
@@ -302,10 +315,10 @@ void WriteTaskFeedbackLog(int connfd,char *recvbuff,unsigned long length)
 	}
 
 
-int GetNodeIDFromConnfd(int connfd)
+int32_t GetNodeIDFromConnfd(int32_t connfd)
 //根据连接套接字得到节点号0~17
 {
-	int i = 0;
+	int32_t i = 0;
 
 //	if(DEW_DEBUG==1)printf("inside GetNodeIDFromConnfd \n");
 	for(i=0; i< DATANODE_NUMBER; i++)
@@ -322,9 +335,9 @@ void *ProvideTask(void *arg)
 //每一个datanode有一个人任务列表，列表是一长串字符串，字符串的第一个long表示该任务列表的长度，是sizeof(nTaskBlock)的整数倍
 //
 {
-	int nodeNum = DATANODE_NUMBER;
-	int i=0;
-	int semid = sem_openid(key_task);
+	int32_t nodeNum = DATANODE_NUMBER;
+	int32_t i=0;
+	int32_t semid = sem_openid(key_task);
 	g_pDatanodeTask = (pTaskHead)malloc(sizeof(nTaskHead)*DATANODE_NUMBER);
 	assert(g_pDatanodeTask != NULL);
 	g_TaskStartBlockNum = 0;//初始化块号
@@ -393,8 +406,8 @@ void *ProvideTask(void *arg)
 
 bool VersionUpdated()
 {
-	int i = 0;
-	int j = 0;
+	int32_t i = 0;
+	int32_t j = 0;
 //	j = g_versionNum;
 	 j = g_versionNum + 1;//由于g_feedbackVersion 在连接时+1，在第一次接受feedback时+1 ，所以此处需要+1
 //	if(DEW_DEBUG==1)printf("inside VersionUpdated \n");
@@ -405,7 +418,7 @@ bool VersionUpdated()
 	g_versionNum++;
 	return true;
 	}
-int ProvideTaskFinished()//生成任务结束,等于1结束，等于0未结束
+int32_t ProvideTaskFinished()//生成任务结束,等于1结束，等于0未结束
 {
 	if(g_TaskStartBlockNum >= 6)return 1;
 //	if(g_TaskStartBlockNum >= 996)return 1;
@@ -413,17 +426,17 @@ int ProvideTaskFinished()//生成任务结束,等于1结束，等于0未结束
 
 	}
 
-void ProvideTaskAlgorithm(int * g_weight,pTaskHead g_pDatanodeTask)
+void ProvideTaskAlgorithm(int32_t * g_weight,pTaskHead g_pDatanodeTask)
 //依据起始块号和权重值信息，得到任务信息，终止条件为权值不能满足下一个条带的任务分配
 {
 	list_head * strp_lay_head = NULL ;
 
-	int task[DATANODE_NUMBER][EREASURE_N - EREASURE_K+2];//与每个节点一一对应,0号位置存储节点号，1号位置存储节点数据块个数
-	int node_num = 0;//参与任务的节点个数
-	int block_num = 0;//单个节点上数据块的个数
-	int node_ID = 0;//节点号
-	int local_node_ID = 0;//本地节点号
-	int i,j,k=0;
+	int32_t task[DATANODE_NUMBER][EREASURE_N - EREASURE_K+2];//与每个节点一一对应,0号位置存储节点号，1号位置存储节点数据块个数
+	int32_t node_num = 0;//参与任务的节点个数
+	int32_t block_num = 0;//单个节点上数据块的个数
+	int32_t node_ID = 0;//节点号
+	int32_t local_node_ID = 0;//本地节点号
+	int32_t i,j,k=0;
 	list_head * weight_strp_lay = NULL;
 	list_head * p_temp_node = NULL;
 	list_head * p_temp_blk_head = NULL;//子链表头节点

@@ -58,7 +58,7 @@ typedef struct transportBlock{
 */
 
 #include "DatanodeToDatanode.h"
-extern int g_finished_task;
+extern int32_t g_finished_task;
 extern pthread_mutex_t g_finished_task_lock;
 pConnect g_pFreeClientBuffList = NULL;
 pConnect g_pUsedClientBuffList = NULL;//暂时不用上
@@ -72,11 +72,11 @@ void * ProcessChunkTask(void* argv)
 	pTaskBlock pChunkTask = (pTaskBlock)argv;//某一个块的任务
 
 	//本地数据块
-	int * localBlock = NULL;
-	int localNum = 0;
-	int waitBlockNum = 0;
-	int i;
-	int equal ;
+	int32_t * localBlock = NULL;
+	int32_t localNum = 0;
+	int32_t waitBlockNum = 0;
+	int32_t i;
+	int32_t equal ;
 	pthread_t * thread_client_num =NULL;//客户端发送数据线程
 	pthread_t * thread_local_num = NULL;//读取本地数据线程
 	//struct dataBuff chunkBuff;
@@ -219,21 +219,21 @@ void * ProcessChunkTask(void* argv)
 	return (void*)NULL;
 
 }
-pSingleBuff ApplyBuffFromLocalData(int localBlock)
+pSingleBuff ApplyBuffFromLocalData(int32_t localBlock)
 {
 	return NULL;
 	}
-pSingleBuff ApplyBuffFromServerConnection(unsigned int waitedBlockID)
+pSingleBuff ApplyBuffFromServerConnection(uint32_t waitedBlockID)
 //依据等待的块号向已连接sock索要内存,如果连接没有建立，等待连接，后面的程序也会阻塞一段时间
 {
 
 	return NULL;
 	}
-pConnect ApplyForClientConnection(pTaskBlock pChunkTask,int destNum)
+pConnect ApplyForClientConnection(pTaskBlock pChunkTask,int32_t destNum)
 //依据目的ip地址索要连接，如果没有连接则建立连接
 //连接的缓存没有申请，
 {
-	int connfd=0;
+	int32_t connfd=0;
 	char * destIP = pChunkTask->destIP[destNum];
 	pConnect tmpConnect =NULL;
 	list_head * pSearch = NULL;
@@ -296,11 +296,11 @@ pSingleBuff ApplyBuffFromClientConnection(unsigned char * destIP)
 void EncodeData(pConnectServer* connfdServer,pSingleBuff* pLocalBuff,pConnect* connfdClient,pTaskBlock pChunkTask)
 //connfdServer可以为空买，即不用等待数据
 {
-	int serverNum  = pChunkTask->waitForBlock;
-	int i =0;
-	int localNum = 0;
-	int clientNum = pChunkTask->destIPNum;
-	long piceNum = (BLOCK_SIZE/BUFF_PICE_SIZE);
+	int32_t serverNum  = pChunkTask->waitForBlock;
+	int32_t i =0;
+	int32_t localNum = 0;
+	int32_t clientNum = pChunkTask->destIPNum;
+	int64_t piceNum = (BLOCK_SIZE/BUFF_PICE_SIZE);
 	while(pChunkTask->localTaskBlock[i] !=-1)
 	{
 		i++;
@@ -350,8 +350,8 @@ pSingleBuff AskForMemory()//向内存模块申请内存，需要加锁因为不�
 //双向链表中，如果空闲链表为空，则申请内存是增加一个内存片在链表尾部。分配内存就是将链表的尾节点对应的内存分出去，然后从链表尾部删除
 //分配了之后再初始化一些参数，这样在归还缓存时便不需要初始化了，因为每次使用之前就会对其进行初始化
 {
-	int baseNum = 20;
-	int i =0;
+	int32_t baseNum = 20;
+	int32_t i =0;
 	pMemory tmpMemory = NULL;
 	char * tmpBuff = NULL;
 	pSingleBuff tmpSingleBuff =NULL;
@@ -425,13 +425,13 @@ void SendBackMemory(pSingleBuff pBuffPice)
 	pthread_mutex_unlock(&g_memoryLock);
 	tmpMemory->pBuffPice = pBuffPice;
 	}
-void TraslateTaskToServer(pTaskBlock pChunkTask,int destNum,pTransportBlock pChunkTransport)
+void TraslateTaskToServer(pTaskBlock pChunkTask,int32_t destNum,pTransportBlock pChunkTransport)
 {
-	int * localBlock = NULL;
-	int localNum = 0;
-	int waitBlockNum = 0;
-	int i =0;
-	int offsetInsideChunk =-1;//0~6
+	int32_t * localBlock = NULL;
+	int32_t localNum = 0;
+	int32_t waitBlockNum = 0;
+	int32_t i =0;
+	int32_t offsetInsideChunk =-1;//0~6
 	pChunkTransport->chunkID = pChunkTask->chunkID;
 	pChunkTransport->blockType = pChunkTask->waitedBlockType;
 	if(pChunkTransport->blockType ==0)
@@ -451,13 +451,13 @@ void TraslateTaskToServer(pTaskBlock pChunkTask,int destNum,pTransportBlock pChu
 	pChunkTransport->transportSize = BUFF_PICE_SIZE;
 }
 
-void TraslateTaskToTransport(pTaskBlock pChunkTask,int destNum,pTransportBlock pChunkTransport)
+void TraslateTaskToTransport(pTaskBlock pChunkTask,int32_t destNum,pTransportBlock pChunkTransport)
 {
-	int * localBlock = NULL;
-	int localNum = 0;
-	int waitBlockNum = 0;
-	int i =0;
-	int offsetInsideChunk =-1;//0~6
+	int32_t * localBlock = NULL;
+	int32_t localNum = 0;
+	int32_t waitBlockNum = 0;
+	int32_t i =0;
+	int32_t offsetInsideChunk =-1;//0~6
 	localBlock = pChunkTask -> localTaskBlock;
 	while(*(localBlock+localNum) != -1)
 		{
@@ -490,8 +490,8 @@ void* DataToDataTaskServer(void*arg)
 {
 	//作为处理任务的服务端，等待建立连接，将缓存挂在table中，接收数据
 
-		int listenfd;
-		int on,ret;
+		int32_t listenfd;
+		int32_t on,ret;
 	//	socklen_t len;
 		struct sockaddr_in servaddr;
 		listenfd = socket(AF_INET,SOCK_STREAM,0);
@@ -519,20 +519,20 @@ void* DataToDataTaskServer(void*arg)
 	return NULL;
 }
 
-int handle_connect(int listen_sock)//返回0正常，返回其他值，失败
+int32_t handle_connect(int32_t listen_sock)//返回0正常，返回其他值，失败
 {
-		int * Pconnfd;
+		int32_t * Pconnfd;
 		socklen_t len;
 		struct sockaddr_in cliaddr;
 		pthread_t  pthread_do;
-		int rt;
+		int32_t rt;
 		len = sizeof(cliaddr);
 		pthread_mutex_init(&g_ServerLock,NULL);
 
 	    if(DEW_DEBUG ==1)printf("inside handle_connect\n");
 		while(1)//等待所有datanode连接
 		{
-			Pconnfd = (int*)malloc(sizeof(int));
+			Pconnfd = (int32_t*)malloc(sizeof(int32_t));
 			*Pconnfd = accept(listen_sock,(struct sockaddr*)&cliaddr,&len);
 			if (-1 != *Pconnfd)
 				printf("datanode: got connection from client %s \n",inet_ntoa(cliaddr.sin_addr));
@@ -551,17 +551,17 @@ void *handle_request(void * arg)
 //不用替换内存，使用完后也不用在table中删除。因为Server端被连接，一旦client端确立了连接之后就会发送数据块信息
 //更新table中对应套接字所附带的待接收数据块信息，原有的数据块信息一定是过时的未在使用的。
 {
-	int connfd ;
+	int32_t connfd ;
 	pSingleBuff  pBuffPice =NULL;
 	char sendbuff[DATA_NAME_MAXLENGTH];
-	long recv,send;
-	long task_length = 0;
-	long piceNum = 0;
+	int64_t recv,send;
+	int64_t task_length = 0;
+	int64_t piceNum = 0;
 	pConnectServer tmpConnectServer = NULL;
 	pTransportBlock pChunkTransport =NULL;
 	pChunkTransport = (pTransportBlock)(malloc)(sizeof(nTransportBlock));
 	assert(pChunkTransport!=NULL);
-	connfd = *((int*)arg);
+	connfd = *((int32_t*)arg);
 	free(arg);
 	if(DEW_DEBUG ==1)printf("inside hanlde_request %d\n",connfd);
 	pthread_mutex_lock(&g_ServerLock);
@@ -625,9 +625,9 @@ void *handle_request(void * arg)
 void *SendData(void*arg)//只是发送缓存，发送数据，发送完成之后需要解放占有的缓存空间
 {
 	pConnect connfdClient = (pConnect)arg;
-	int connfd = connfdClient->connfd;
+	int32_t connfd = connfdClient->connfd;
 	pSingleBuff pBuffPice = connfdClient->pBuffPice;
-	long piceNum = (BLOCK_SIZE/BUFF_PICE_SIZE);
+	int64_t piceNum = (BLOCK_SIZE/BUFF_PICE_SIZE);
 	 if(DEW_DEBUG ==1)printf("inside SendData\n");
 	pthread_detach(pthread_self());
 	while((piceNum--)>=0)
@@ -647,12 +647,12 @@ void *SendData(void*arg)//只是发送缓存，发送数据，发送完成之后
 void *ReadLocalData(void * arg)
 //并没有真正的读取本次盘数据
 {
-	int localBlock;
+	int32_t localBlock;
 	pLocalData p_tmpLocalData =NULL;
 	off_t offset = 0;
 	pSingleBuff pBuffPice = NULL;
 	pMemory tmpMemory = NULL;
-	long piceNum = (BLOCK_SIZE/BUFF_PICE_SIZE);
+	int64_t piceNum = (BLOCK_SIZE/BUFF_PICE_SIZE);
 	if(DEW_DEBUG ==1)printf("inside ReadLocalData\n");
 	pthread_detach(pthread_self());
 	p_tmpLocalData = (pLocalData)arg;
@@ -680,13 +680,13 @@ void *ReadLocalData(void * arg)
 //	pthread_mutex_unlock(&g_memoryLock);
 pthread_exit(0);
 	}
-off_t FindBlockOffset(int localBlock)
+off_t FindBlockOffset(int32_t localBlock)
 //输入参数为数据块号，根据数据块号找到对应数据的偏移
 {
 	return 0;
 
 	}
-unsigned long ReadDisk( off_t offset, char * buff, unsigned long length)
+uint64_t ReadDisk( off_t offset, char * buff, uint64_t length)
 {
 	char * path;//每个节点都会有对应的/dev/sda
 
