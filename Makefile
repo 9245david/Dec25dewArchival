@@ -4,7 +4,7 @@
 #gcc -g Socket_connect_read_write.c DewHa.c NameNodeControl.c -o NameNode.out -lpthread
 
 Datanode:Socket.o DewHa.o DatanodeToDatanode.o DatanodeToNamenode.o
-	gcc -g3 Socket.o DewHa.o DatanodeToDatanode.o DatanodeToNamenode.o -o Datanode.out -lpthread 
+	gcc -g3 Socket.o DewHa.o DatanodeToDatanode.o DatanodeToNamenode.o -o Datanode.out -lpthread -rdynamic
 Socket.o:Socket_connect_read_write.c
 	gcc -g3 -c Socket_connect_read_write.c -o Socket.o
 DewHa.o :DewHa.c
@@ -16,7 +16,7 @@ DatanodeToDatanode.o:DatanodeToDatanode.c
 DatanodeToNamenode.o:DatanodeToNamenode.c
 	gcc -g3 -c DatanodeToNamenode.c -o DatanodeToNamenode.o
 Namenode:Socket.o DewHa.o NameNodeControl.o
-	gcc -g3 Socket.o DewHa.o NameNodeControl.o -o NameNode.out -lpthread
+	gcc -g3 Socket.o DewHa.o NameNodeControl.o -o NameNode.out -lpthread -rdynamic
 clean:
 	rm -rf *.o *.out
 

@@ -79,7 +79,8 @@ int32_t init_cluster()
 			{
 				cluster_lay[j][i]=-1;
 			}
-    srand((unsigned)time(NULL));
+   if(DEW_DEBUG>0)NULL;
+	else  srand((unsigned)time(NULL));
 	
 	for(local_blkID=1;local_blkID<=blk_id;local_blkID++)
 	{

@@ -90,8 +90,9 @@ int32_t g_weight[DATANODE_NUMBER];
 pTaskHead g_pDatanodeTask =NULL;
 int32_t g_TaskStartBlockNum ;//全局,每次任务开始的第一个块
 int32_t g_versionNum = 1;
-void ProvideTaskAlgorithm(int32_t * g_weight,pTaskHead g_pDatanodeTask);
+int ProvideTaskAlgorithm(int32_t * g_weight,pTaskHead g_pDatanodeTask);
 int32_t ProvideTaskFinished();//生成任务结束,等于1结束，等于0未结束
 void *ProvideTask(void *arg);
 int  print_task_block(pTaskBlock p_temp_task_block);
+void delete_tail_node(list_head * weight_strp_lay);
 #endif /* NAME_NODE_CONTROL_H_ */

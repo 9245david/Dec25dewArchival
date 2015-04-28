@@ -2,6 +2,7 @@
 #include "DatanodeToNamenode.h"
 #include "BlockStruct.h"
 #include <assert.h>
+#include "err_backtrace.h"
 // oneTasktime 没有设置，FeedbackDToN完全没有填充任何内容
 extern PNamenodeID  PnamenodeID;
 extern void *ProcessChunkTask(void *argv);
@@ -14,7 +15,7 @@ char * localIPaddress;
 bool sendFeedback = false; //全局变量
 pthread_mutex_t lockFeedback;
 struct timeval taskStarttime;
-
+int32_t g_recv_end = 0;//0 未结束，1结束
 #pragma pack(push)
 #pragma pack(1)
 typedef struct RegistAndTaskFeedback{
@@ -35,6 +36,17 @@ int32_t g_finished_task = 0;
 pthread_mutex_t g_finished_task_lock;
 int32_t main(int32_t argc,char** argv)
 {
+	struct sigaction myAction;
+myAction.sa_sigaction = print_reason;
+sigemptyset(&myAction.sa_mask);
+myAction.sa_flags = SA_RESTART | SA_SIGINFO;
+sigaction(SIGSEGV, &myAction, NULL);
+sigaction(SIGUSR1, &myAction, NULL);
+sigaction(SIGFPE, &myAction, NULL);
+sigaction(SIGILL, &myAction, NULL);
+sigaction(SIGBUS, &myAction, NULL);
+sigaction(SIGABRT, &myAction, NULL);
+sigaction(SIGSYS, &myAction, NULL);
 	pthread_mutex_init(&g_finished_task_lock,NULL);
 	PnamenodeID = (PNamenodeID)malloc(sizeof(NamenodeID));
 	assert(PnamenodeID != NULL);
@@ -93,7 +105,8 @@ int32_t DatanodeRegistOnNamenode(void)
 	}
 
 int32_t DatanodeControlwithNamenode(int32_t sock_DtoN)
-//依据连接套接字与namenode通信
+//依据连接套接字与namenode通信i
+//返回2表示任务已接收完毕
 //接收namenode分配过来的任务，并且定时反馈任务的完成度
 {
 
@@ -174,6 +187,7 @@ struct sockaddr_in cliaddr;
 		task_length = task_num;
 		if(DEW_DEBUG == 1)fprintf(stderr,"read task num is %ld\n",task_length);
 		    	//DataTransportRead(sock_DtoN,recvTaskBuff,task_length);
+		if(task_num == 0){g_recv_end =1;break;}
 		recv = DataTransportRead(sock_DtoN,recvTaskBuff,task_length * sizeof(nTaskBlock));
 		    	//接手namenode发送过来的任务
 		    		if(recv != task_length *sizeof(nTaskBlock))
@@ -216,8 +230,37 @@ struct sockaddr_in cliaddr;
 		pthread_mutex_unlock(&lockFeedback);
 
 	}
+		
+		pthread_mutex_lock(&g_finished_task_lock);
+                g_finished_task = 0;
+                pthread_mutex_unlock(&g_finished_task_lock);
+                ProcessTask(recvTaskBuff,recv);//将任务抛给任务处理模块
+                //如果是最后一次任务，即空任务，此时ProcessTask函数会将TaskRecvFinished设置为1
+                while(sendFeedback == false);//时间到了发送任务反馈给namenode
+                FeedbackDToN-> allocatedTask = task_length;
+                FeedbackDToN->availableBandwidth = 64;
+                FeedbackDToN->wholeBandwidth = 100;
+                FeedbackDToN->finishedTask = g_finished_task;
+                if(g_finished_task >= task_length)
+                {
+                        FeedbackDToN->finishedOrNot =1;
+                }
+                else
+                {
+                        FeedbackDToN->finishedOrNot =0;
+                }
+                send = DataTransportWrite(sock_DtoN, (char*)FeedbackDToN, length);
+                if(send != length)
+                {
+                        printf("send feedback error \n");
+                        return -1;
+                }
+                pthread_mutex_lock(&lockFeedback);
+                assert(sendFeedback == true);
+                sendFeedback = false;
+                pthread_mutex_unlock(&lockFeedback);
 
-	return 1;
+	return 2;
 	}
 
 int32_t TaskRecvFinished(char * localIPaddress)
@@ -228,6 +271,7 @@ int32_t TaskRecvFinished(char * localIPaddress)
 	//namenode仍然发生一次空任务，标志该节点的归档完全结束，故localIPaddress 参数可取消，
 	//不加这最后一次ProcessTime里面的while循环的结束条件就会有问题
 	assert(localIPaddress != NULL);
+	if(g_recv_end ==1) return 1;
 	return 0;
 	}
 
@@ -264,7 +308,7 @@ void * ProcessTime(void * taskTime)
 			pthread_mutex_unlock(&lockFeedback);
 		}
 	}
-
+	if(DEW_DEBUG > 1)fprintf(stderr,"time finished\n");
 	return NULL;
 	}
 

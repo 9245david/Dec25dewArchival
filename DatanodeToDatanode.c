@@ -95,10 +95,17 @@ void * ProcessChunkTask(void* argv)
 		{
 			localNum ++;
 		}
+
 		pLocalBuff = (pSingleBuff *)malloc(localNum*sizeof(pSingleBuff));
 		thread_local_num = (pthread_t*)malloc(localNum*sizeof(pthread_t));
 		pLocalGroup = (pLocalData)malloc(localNum*sizeof(nLocalData));
-
+		if(localNum>0)
+		{
+		assert(pLocalBuff !=NULL);
+		assert(pLocalGroup !=NULL);
+		assert(thread_local_num!=NULL);
+		}
+		if(localNum==2)fprintf(stderr,"chunk before AskForMemory(),localNum%d\n",localNum);
 		for(i=0;i<localNum;i++)
 		{
 			*(pLocalBuff+i) = AskForMemory();
@@ -108,16 +115,16 @@ void * ProcessChunkTask(void* argv)
 			pthread_create(thread_local_num+i,NULL,&ReadLocalData,(void*)(pLocalGroup+i));
 
 		}
-
+	if(localNum ==2)fprintf(stderr,"chunk after AskForMemory()\n");
 	for(i=0;i<pChunkTask -> destIPNum;i++)
 	{
 
 		*(connfdClient+i) = ApplyForClientConnection(pChunkTask,i);
 	}
-
+	if(DEW_DEBUG>0){if(i==0)fprintf(stderr,"it's dest\n");}
 	thread_client_num = (pthread_t*)malloc(localNum*sizeof(pthread_t));
-	assert(thread_client_num != NULL);
-	if(pChunkTask->encode == 0)//不需编码，即直接发送数据,无需接收数据
+	if(localNum !=0)assert(thread_client_num != NULL);
+	if((pChunkTask->encode == 0) &&(localNum >0)&&(pChunkTask->waitForBlock == 0)&&(pChunkTask->destIPNum >0))//不需编码，即直接发送数据,无需接收数据
 	{
 	//		assert(localNum == pChunkTask -> destIPNum);//出错不是每个目标节点只发送一个数据
 
@@ -138,7 +145,8 @@ void * ProcessChunkTask(void* argv)
 			}
 
 	}
-	else if(pChunkTask->waitForBlock ==0)//需要编码，但是无需等待数据，只需要本地数据
+	else if((pChunkTask->waitForBlock ==0)&&(pChunkTask->encode !=0)&&(localNum >0)&&(pChunkTask->destIPNum >0))
+	//需要编码，但是无需等待数据，只需要本地数据
 	{
 		//for(i=0;i<localNum;i++)
 		for(i=0;i<EREASURE_K;i++)
@@ -165,7 +173,7 @@ void * ProcessChunkTask(void* argv)
 
 
 	}
-	else if((pChunkTask->waitForBlock != 0) &&(pChunkTask->encode !=0))
+	else if((pChunkTask->waitForBlock != 0) &&(pChunkTask->encode !=0)&&(localNum>0)&&(pChunkTask->destIPNum >0))//需要编码且需要等待数据
 		//获取的匹配server端是带连接信息的已经申请好了内存，不用将该结构还给链表，只用将内存还给内存模块
 	{
 		pChunkTranport = (pTransportBlock)malloc(sizeof(nTransportBlock));
@@ -184,7 +192,7 @@ void * ProcessChunkTask(void* argv)
 				else break;
 			}
 		}
-		for(i=0;i<localNum;i++)
+		for(i=0;i<EREASURE_K;i++)
 		{
 			connfdClient[i]->pBuffPice = AskForMemory();
 			pthread_create(thread_client_num+i,NULL,&SendData,(void*)(*(connfdClient+i)));
@@ -194,7 +202,7 @@ void * ProcessChunkTask(void* argv)
 
 		for(i=0; i<EREASURE_K; i++)//回收客户端
 		{
-			if(DEW_DEBUG==1)printf("等待回收内存\n");
+			if(DEW_DEBUG>0)fprintf(stderr,"等待回收内存\n");
 			while(connfdClient[i]->pBuffPice->length!=0)NULL;
 			SendBackMemory(connfdClient[i]->pBuffPice);
 		}
@@ -209,9 +217,42 @@ void * ProcessChunkTask(void* argv)
 			SendBackMemory(connfdServer[i]->pBuffPice);
 		}
 	}
+	else if((pChunkTask->waitForBlock >= 0) &&(pChunkTask->encode !=0)&&(localNum>=0)&&(pChunkTask->destIPNum ==0))
+	//可能等待数据，编码，可能有本地数据，不发送数据
+	{
+		pChunkTranport = (pTransportBlock)malloc(sizeof(nTransportBlock));
+                connfdServer = (pConnectServer*)malloc((pChunkTask->waitForBlock)*sizeof(pConnectServer));
+                assert(connfdServer != NULL);
+                for(i=0;i<pChunkTask->waitForBlock;i++)
+                {
+                        TraslateTaskToServer(pChunkTask,i,pChunkTranport);//等待的哪一个数据块
+                        pSearch = &(g_pServerBuffList->listConnect);
+                        while(1)//一直等待，直到连接被建立
+                        {
+                                if(pSearch ==&(g_pServerBuffList->listConnect))pSearch = pSearch->next;
+                                connfdServer[i] = container_of(pSearch,nConnectServer,listConnect);
+                                equal = memcmp(connfdServer[i]->pChunkTransport,pChunkTranport,sizeof(nTransportBlock));
+                                if(equal != 0)pSearch = pSearch->next;
+                                else break;
+                        }
+                }
+                EncodeData(connfdServer,pLocalBuff,connfdClient,pChunkTask);//生产数据
+
+                for(i=0;i<localNum;i++)//回收本地
+                {
+                        if(DEW_DEBUG >0)fprintf(stderr,"等待回收内存\n");
+                        //while(pLocalBuff[i]->length!=0)NULL;
+                        SendBackMemory(pLocalBuff[i]);
+                }
+                for(i=0;i<pChunkTask->waitForBlock;i++)//回收服务端
+                {
+                        SendBackMemory(connfdServer[i]->pBuffPice);
+                }
+
+	}
 	else
 	{
-		printf("pChunkTask error\n");
+		fprintf(stderr,"pChunkTask error\n");
 		return NULL;
 	}
 	pthread_mutex_lock(&g_finished_task_lock);
@@ -236,6 +277,7 @@ pConnect ApplyForClientConnection(pTaskBlock pChunkTask,int32_t destNum)
 {
 	int32_t connfd=0;
 	char * destIP = pChunkTask->destIP[destNum];
+	int err = 0;
 	pConnect tmpConnect =NULL;
 	list_head * pSearch = NULL;
 	pTransportBlock pChunkTransport =NULL;
@@ -279,8 +321,8 @@ pConnect ApplyForClientConnection(pTaskBlock pChunkTask,int32_t destNum)
 	*/
 	}
 	TraslateTaskToTransport(pChunkTask,destNum,pChunkTransport);
-	DataTransportWrite(connfd,(char*)pChunkTransport,sizeof(nTransportBlock));
-
+	err = DataTransportWrite(connfd,(char*)pChunkTransport,sizeof(nTransportBlock));
+	if(err < 0)fprintf(stderr,"pChunkTransport err\n");
 //	pServerNodeID pDestNodeID =NULL;
 //	pDestNodeID = (pServerNodeID)malloc(sizeof(ServerNodeID));
 //	pDestNodeID -> NameToDataPort = DATANODE_PORT;
@@ -296,6 +338,7 @@ pSingleBuff ApplyBuffFromClientConnection(unsigned char * destIP)
 	}
 void EncodeData(pConnectServer* connfdServer,pSingleBuff* pLocalBuff,pConnect* connfdClient,pTaskBlock pChunkTask)
 //connfdServer可以为空买，即不用等待数据
+//本地和server  的length -1,client 的length +1
 {
 	int32_t serverNum  = pChunkTask->waitForBlock;
 	int32_t i =0;
@@ -314,7 +357,8 @@ void EncodeData(pConnectServer* connfdServer,pSingleBuff* pLocalBuff,pConnect* c
 		{
 			while((*(pLocalBuff+i))->length ==0){};
 		}
-		for(i=0;i<serverNum;i++)
+
+		for(i=0;i<serverNum;i++)//当connfdServer == NULL 时，serverNum ==0
 		{
 			assert(connfdServer!=NULL);
 			while((*(connfdServer+i))->pBuffPice->length==0){};
@@ -357,6 +401,7 @@ pSingleBuff AskForMemory()//向内存模块申请内存，需要加锁因为不�
 	char * tmpBuff = NULL;
 	pSingleBuff tmpSingleBuff =NULL;
 	pthread_mutex_lock(&g_memoryLock);
+	if(DEW_DEBUG>0)fprintf(stderr,"insdie askformemmory\n");
 	if(g_pFreeMemoryList == NULL)//如果为空,直接申请二十片内存
 	{
 		g_pFreeMemoryList = (pMemory)malloc(sizeof(nMemory));
@@ -404,13 +449,18 @@ pSingleBuff AskForMemory()//向内存模块申请内存，需要加锁因为不�
 
 		tmpMemory->pBuffPice = tmpSingleBuff;
 	}
+	if(DEW_DEBUG>0)fprintf(stderr,"inside 1 askformemmory\n");
 	tmpMemory = container_of(g_pFreeMemoryList->listMemory.prev,nMemory,listMemory);
+	if(DEW_DEBUG>0)fprintf(stderr,"inside 1.5 askformemmory\n");
+	tmpSingleBuff = tmpMemory->pBuffPice;//对于if 和 else if的条件这句话是不需要的导致了这个错误
 	tmpSingleBuff -> buffSize = BUFF_SIZE;
 	tmpSingleBuff -> pice = BUFF_PICE_SIZE;
 	tmpSingleBuff -> start = 0;
 	tmpSingleBuff -> end = 0;//end < buffSize/pice;
 	tmpSingleBuff -> length = 0;
-	tmpSingleBuff = tmpMemory ->pBuffPice;
+//	tmpSingleBuff = tmpMemory ->pBuffPice;//在这里赋值有什么鬼用
+	if(DEW_DEBUG>0)fprintf(stderr,"inside 2 askformemmory\n");
+	
 	list_del(g_pFreeMemoryList->listMemory.prev);
 	pthread_mutex_unlock(&g_memoryLock);
 	return tmpSingleBuff;
@@ -541,7 +591,7 @@ int32_t handle_connect(int32_t listen_sock)//返回0正常，返回其他值，�
 			rt = pthread_create(&pthread_do,NULL,&handle_request,(void*)Pconnfd);
 			if(0 != rt)
 					{
-					printf("pthread_create error\n");
+					fprintf(stderr,"pthread_create error\n");
 					return rt;
 				         }
 		}
@@ -563,8 +613,8 @@ void *handle_request(void * arg)
 	pChunkTransport = (pTransportBlock)(malloc)(sizeof(nTransportBlock));
 	assert(pChunkTransport!=NULL);
 	connfd = *((int32_t*)arg);
-	free(arg);
-	if(DEW_DEBUG ==1)printf("inside hanlde_request %d\n",connfd);
+//	free(arg);//抽风free 了连接套接子
+	if(DEW_DEBUG >0)fprintf(stderr,"inside hanlde_request %d\n",connfd);
 	pthread_mutex_lock(&g_ServerLock);
 			if(g_pServerBuffList == NULL)
 			{
@@ -577,13 +627,16 @@ void *handle_request(void * arg)
 			assert(tmpConnectServer!= NULL);
 			tmpConnectServer->connfd = connfd;
 			tmpConnectServer->pBuffPice = AskForMemory();
+	//		tmpConnectServer->pBuffPice = (pSingleBuff)malloc(sizeof(nSingleBuff));//for debug AskForMemory
 			tmpConnectServer->pChunkTransport = pChunkTransport;
-			list_add_tail(&(g_pServerBuffList->listConnect),&(tmpConnectServer->listConnect));
+	if(DEW_DEBUG >0)fprintf(stderr,"inside hanlde_request 2 %d\n",connfd);
+			list_add_tail(&(tmpConnectServer->listConnect),&(g_pServerBuffList->listConnect));
+	if(DEW_DEBUG >0)fprintf(stderr,"inside hanlde_request 2.2 %d\n",connfd);
 			pthread_mutex_unlock(&g_ServerLock);
 	while(1)//反复利用不同的数据块
 	{
 
-	    if(DEW_DEBUG ==1)printf("inside hanlde_request while\n");
+	    if(DEW_DEBUG >0)fprintf(stderr,"inside hanlde_request while,read data\n");
 		recv = DataTransportRead(connfd,(char*)pChunkTransport,sizeof(nTransportBlock));
 		if(recv<0)
 		{
@@ -629,13 +682,15 @@ void *SendData(void*arg)//只是发送缓存，发送数据，发送完成之后
 	int32_t connfd = connfdClient->connfd;
 	pSingleBuff pBuffPice = connfdClient->pBuffPice;
 	int64_t piceNum = (BLOCK_SIZE/BUFF_PICE_SIZE);
+	int32_t err = 0;
 	 if(DEW_DEBUG ==1)printf("inside SendData\n");
 	pthread_detach(pthread_self());
 	while((piceNum--)>=0)
 			{
 				while(pBuffPice->length ==0);
 
-				DataTransportWrite(connfd,pBuffPice->buff+(pBuffPice->start)*BUFF_PICE_SIZE,BUFF_PICE_SIZE);
+				err = DataTransportWrite(connfd,pBuffPice->buff+(pBuffPice->start)*BUFF_PICE_SIZE,BUFF_PICE_SIZE);
+				if(err <0)fprintf(stderr,"write pbuffpice err\n");
 				pBuffPice->start = (pBuffPice->start +1)%(BUFF_SIZE/BUFF_PICE_SIZE);
 				pthread_mutex_lock(&(pBuffPice->buffLock));
 				pBuffPice->length = pBuffPice->length -1;
