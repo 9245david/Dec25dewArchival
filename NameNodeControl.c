@@ -54,6 +54,7 @@ sigaction(SIGSYS, &myAction, NULL);
 			{
 				pthread_join(*(pthread_node_num+i),NULL);
 			}
+	if(DEW_DEBUG>=1){printf("wait provide task\n");}
 	pthread_join(pthread_provide_task,NULL);
 	fclose(logFile);
 	sem_d(semid);
@@ -161,13 +162,36 @@ void *handle_request(void * arg)
     			close(connfd);
     			return NULL;
     		}
-	if(DEW_DEBUG ==1)printf("recv nFeedback from %d",GetNodeIDFromConnfd(connfd));
+	if(DEW_DEBUG >=1)printf("recv nFeedback from %d",GetNodeIDFromConnfd(connfd));
     	WriteTaskFeedbackLog(connfd,recvbuff,sizeof(nFeedback));//将datanode反馈的信息写入日志中
     	ProcessDatanodeState(recvbuff, recv, connfd);//将反馈信息提交给归档管理器
 
     }
+ printf("等待信号量%s,",inet_ntoa(cliaddr.sin_addr));
+        sem_p(semid,node_num);
+        printf("获得信号两\n");
+        SendTaskToDatanode(connfd);//此处有一个DataTransportWrite
+        recv = DataTransportRead(connfd,recvbuff,sizeof(nFeedback));//首先接收数据长度参数
 
-	if(DEW_DEBUG ==1)printf("get out of handle_request\n");
+        //接收各个节点的归档进度反馈
+        //此处接受数据的时间控制暂时有datanode控制，假设控制过程为，接收管理节点的starttime  之后有一个监控时间的线程
+        //当约定的时间点到达之后发送反馈信息，这样貌似
+                if(recv<0)
+                {
+                        if(DEW_DEBUG ==2)
+                                        {
+                                                fprintf(stderr," namenode nFeedback error\n");
+                                        }
+                        printf("namenode nFeedback error\n");
+                        close(connfd);
+                        return NULL;
+                }
+        if(DEW_DEBUG >=1)printf("recv nFeedback from %d",GetNodeIDFromConnfd(connfd));
+        WriteTaskFeedbackLog(connfd,recvbuff,sizeof(nFeedback));//将datanode反馈的信息写入日志中
+    	ProcessDatanodeState(recvbuff, recv, connfd);//将反馈信息提交给归档管理器
+
+
+	if(DEW_DEBUG >=1)printf("get out of handle_request\n");
 	return NULL;
 	}
 
@@ -314,10 +338,11 @@ void WriteTaskFeedbackLog(int32_t connfd,char *recvbuff,uint64_t length)
 	//int logFd = open("TaskFeedbackLog.log",O_WRONLY|O_CREAT,0666);//使用O_CREAT时必须用参数mode = 0666
 	//本来想用·pwrite这样就不用加互斥锁，但是写入结构化的数据，在文件读取时只能用函数写太麻烦了，就用了文件读写函数没有用系统调用
 	
-	if(DEW_DEBUG==1)printf("inside WriteTaskFeedbackLog \n");
+	if(DEW_DEBUG>=1)printf("inside WriteTaskFeedbackLog \n");
 	pthread_mutex_lock(&logFileLock);
 	fprintf(logFile,"%lf,%lf,%lf,%lf",FeedbackDToN->wholeBandwidth,FeedbackDToN->availableBandwidth,FeedbackDToN->wholeStorageSpace,FeedbackDToN->availableStorageSpace);
 	fprintf(logFile,"%u,%u,%u,%u\n",FeedbackDToN->finishedOrNot,FeedbackDToN->allocatedTask,FeedbackDToN->finishedTask,FeedbackDToN->finishedTime);
+	printf("%u,%u,%u,%u\n",FeedbackDToN->finishedOrNot,FeedbackDToN->allocatedTask,FeedbackDToN->finishedTask,FeedbackDToN->finishedTime);
 	pthread_mutex_unlock(&logFileLock);
 	/*
 	uint64_t wholeBandwidth;//B/s，总带宽

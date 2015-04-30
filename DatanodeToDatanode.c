@@ -258,6 +258,8 @@ void * ProcessChunkTask(void* argv)
 	pthread_mutex_lock(&g_finished_task_lock);
 	g_finished_task++;
 	pthread_mutex_unlock(&g_finished_task_lock);
+        if(DEW_DEBUG >0)fprintf(stderr,"pchunktask finished\n");
+	
 	return (void*)NULL;
 
 }

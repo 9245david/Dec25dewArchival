@@ -168,7 +168,8 @@ struct sockaddr_in cliaddr;
 	if(DEW_DEBUG ==2)fprintf(stderr,"recv starttime ,%lds,local ip %s\n",taskStarttime.tv_sec,localIPaddress);
 	rt = pthread_create(&datanodeTime, NULL, &ProcessTime, (void*)(&taskStarttime));
 	assert(0 == rt);
-	while (TaskRecvFinished(localIPaddress) != 1)
+//	while (TaskRecvFinished(localIPaddress) != 1)
+	while(1)
 	{
 		memset(recvTaskBuff,-1,sizeof(char)*DATA_NAME_MAXLENGTH);
 		recv = DataTransportRead(sock_DtoN,recvTaskBuff,sizeof(int32_t));//首先接收数据长度参数
@@ -218,6 +219,7 @@ struct sockaddr_in cliaddr;
 		{
 			FeedbackDToN->finishedOrNot =0;
 		}
+                if(DEW_DEBUG >0)fprintf(stderr,"发送feedback,local ip %s\n",localIPaddress);
 		send = DataTransportWrite(sock_DtoN, (char*)FeedbackDToN, length);
 		if(send != length)
 		{
@@ -339,6 +341,8 @@ void ProcessTask(char *recvTaskBuff,int64_t recv)
 		assert(0 == rt);
 		pthread_task_num ++;
 	}
+	
+       if(DEW_DEBUG >0)fprintf(stderr,"完成接受自NameNode的一次任务\n");
 
 }
 
