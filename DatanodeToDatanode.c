@@ -60,6 +60,7 @@ typedef struct transportBlock{
 #include "DatanodeToDatanode.h"
 extern int32_t g_finished_task;
 extern pthread_mutex_t g_finished_task_lock;
+extern int32_t g_recv_end ;
 pConnect g_pFreeClientBuffList = NULL;
 pConnect g_pUsedClientBuffList = NULL;//暂时不用上
 pConnectServer g_pServerBuffList = NULL;
@@ -67,6 +68,7 @@ pMemory g_pFreeMemoryList = NULL;//所有的内存
 pthread_mutex_t g_memoryLock;
 pthread_mutex_t g_FreeClientLock;//需要初始化
 pthread_mutex_t g_ServerLock;//需要初始化
+
 void * ProcessChunkTask(void* argv)
 {
 	pTaskBlock pChunkTask = (pTaskBlock)argv;//某一个块的任务

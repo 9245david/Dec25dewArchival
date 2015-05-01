@@ -116,21 +116,53 @@ int sem_openid(key_t key)//由Ｋｅｙ至得到信号集描述符
 int sem_p(int semid, short sem_num)//对信号量集合数组的sem_num号位置进行Ｐ操作（0～信号量数数-1）
 {
     struct sembuf sb = {sem_num, -1, /*IPC_NOWAIT*/SEM_UNDO};
+/*
     int ret = semop(semid, &sb, 1);
     if (ret == -1)
         ERR_EXIT("semop dew");
 
     return ret;
+*/
+  int rc;
+
+    while ((rc = semop(semid, &sb, 1)) == -1) {
+      if (errno != EINTR) {
+    	  ERR_EXIT("semop dew");
+      } else {
+        // decide whether to restart the call after interruption
+        // or not
+    	  
+      }
+    }
+    // here, if rc == 0, semop worked, otherwise an error different from
+    // EINTR happened (or you decided not to restart)
+    return rc;
 }
 
 int sem_v(int semid, short sem_num)//对信号量集合数组的sem_num号位置进行V操作（0～信号量数数-1）
 {
     struct sembuf sb = {sem_num, 1, /*0*/SEM_UNDO};
-    int ret = semop(semid, &sb, 1);
+ /*
+     int ret = semop(semid, &sb, 1);
     if (ret == -1)
         ERR_EXIT("semop dew");
 
     return ret;
+*/
+  int rc;
+
+    while ((rc = semop(semid, &sb, 1)) == -1) {
+      if (errno != EINTR) {
+    	  ERR_EXIT("semop dew");
+      } else {
+        // decide whether to restart the call after interruption
+        // or not
+    	  
+      }
+    }
+    // here, if rc == 0, semop worked, otherwise an error different from
+    // EINTR happened (or you decided not to restart)
+    return rc;
 }
 
 int sem_d(int semid)//删除信号量集合

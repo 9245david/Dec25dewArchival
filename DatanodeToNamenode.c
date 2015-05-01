@@ -54,6 +54,8 @@ sigaction(SIGSYS, &myAction, NULL);
 	PnamenodeID->Namenode_ADDR = "192.168.0.33";
 	printf("start datanode to namenode\n");
 	DatanodeToNamenode(NULL);
+	
+	if(DEW_DEBUG>0)fprintf(stderr,"Datanode finished\n");
 	return 0;
 	}
 void * DatanodeToNamenode(void * arg)
@@ -70,6 +72,7 @@ void * DatanodeToNamenode(void * arg)
 	rt = pthread_create(&pthread_server,NULL,&DataToDataTaskServer,(void*)NULL);//响应连接
 		assert(0 == rt);
 	DatanodeControlwithNamenode(sock_DtoN);//任务信息的交流，以及时间控制
+	if(DEW_DEBUG>0)fprintf(stderr,"等待DataToDataTaskServer\n");
 	pthread_join(pthread_server,NULL);
 	return NULL;
 
@@ -236,6 +239,7 @@ struct sockaddr_in cliaddr;
 		pthread_mutex_lock(&g_finished_task_lock);
                 g_finished_task = 0;
                 pthread_mutex_unlock(&g_finished_task_lock);
+		recv = 0;//最后一次一定是0,在前面的while（1）里面跳出的
                 ProcessTask(recvTaskBuff,recv);//将任务抛给任务处理模块
                 //如果是最后一次任务，即空任务，此时ProcessTask函数会将TaskRecvFinished设置为1
                 while(sendFeedback == false);//时间到了发送任务反馈给namenode
@@ -262,6 +266,7 @@ struct sockaddr_in cliaddr;
                 sendFeedback = false;
                 pthread_mutex_unlock(&lockFeedback);
 
+       if(DEW_DEBUG >0)fprintf(stderr,"to namenode over\n");
 	return 2;
 	}
 
@@ -328,6 +333,7 @@ void ProcessTask(char *recvTaskBuff,int64_t recv)
 	if(TaskNum == 0)
 	{
 	//	处理没有任务的情况
+       if(DEW_DEBUG >0)fprintf(stderr,"接受自NameNode的最后一次空任务\n");
 	return;
 	}
 	pthread_task_num = (pthread_t *)malloc(TaskNum * sizeof(pthread_t));

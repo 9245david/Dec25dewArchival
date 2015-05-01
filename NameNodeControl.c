@@ -143,9 +143,9 @@ void *handle_request(void * arg)
     while(TaskSendFinished(connfd) != 1)//所有的归档任务没有派送完
     {
     	 // 发送任务给各个节点
-	printf("等待信号量%s,",inet_ntoa(cliaddr.sin_addr));
+	printf("while 等待信号量%s,",inet_ntoa(cliaddr.sin_addr));
     	sem_p(semid,node_num);
-	printf("获得信号两\n");
+	printf("while 获得信号两\n");
     	SendTaskToDatanode(connfd);//此处有一个DataTransportWrite
     	recv = DataTransportRead(connfd,recvbuff,sizeof(nFeedback));//首先接收数据长度参数
 
@@ -162,10 +162,10 @@ void *handle_request(void * arg)
     			close(connfd);
     			return NULL;
     		}
-	if(DEW_DEBUG >=1)printf("recv nFeedback from %d",GetNodeIDFromConnfd(connfd));
+	if(DEW_DEBUG >=1)printf("while recv nFeedback from %d",GetNodeIDFromConnfd(connfd));
     	WriteTaskFeedbackLog(connfd,recvbuff,sizeof(nFeedback));//将datanode反馈的信息写入日志中
     	ProcessDatanodeState(recvbuff, recv, connfd);//将反馈信息提交给归档管理器
-
+	
     }
  printf("等待信号量%s,",inet_ntoa(cliaddr.sin_addr));
         sem_p(semid,node_num);
@@ -340,8 +340,8 @@ void WriteTaskFeedbackLog(int32_t connfd,char *recvbuff,uint64_t length)
 	
 	if(DEW_DEBUG>=1)printf("inside WriteTaskFeedbackLog \n");
 	pthread_mutex_lock(&logFileLock);
-	fprintf(logFile,"%lf,%lf,%lf,%lf",FeedbackDToN->wholeBandwidth,FeedbackDToN->availableBandwidth,FeedbackDToN->wholeStorageSpace,FeedbackDToN->availableStorageSpace);
-	fprintf(logFile,"%u,%u,%u,%u\n",FeedbackDToN->finishedOrNot,FeedbackDToN->allocatedTask,FeedbackDToN->finishedTask,FeedbackDToN->finishedTime);
+	fprintf(logFile,"wholeBandwidth %lf,available%lf,%lf,%lf",FeedbackDToN->wholeBandwidth,FeedbackDToN->availableBandwidth,FeedbackDToN->wholeStorageSpace,FeedbackDToN->availableStorageSpace);
+	fprintf(logFile,"finishedornot%u,allocated%u,finished%u,finishtime%u\n",FeedbackDToN->finishedOrNot,FeedbackDToN->allocatedTask,FeedbackDToN->finishedTask,FeedbackDToN->finishedTime);
 	printf("%u,%u,%u,%u\n",FeedbackDToN->finishedOrNot,FeedbackDToN->allocatedTask,FeedbackDToN->finishedTask,FeedbackDToN->finishedTime);
 	pthread_mutex_unlock(&logFileLock);
 	/*
@@ -354,6 +354,7 @@ void WriteTaskFeedbackLog(int32_t connfd,char *recvbuff,uint64_t length)
 	unsigned int finishedTask ; //在预想时间内完成的数据块的个数
 	unsigned int finishedTime ; //如果完成了，提前完成所花费的时间
 	*/
+	if(DEW_DEBUG>=1)printf("outside WriteTaskFeedbackLog \n");
 	return ;
 	}
 
@@ -452,8 +453,9 @@ void *ProvideTask(void *arg)
                         g_pDatanodeTask[i].singleStripTask = NULL;
                 }
                 for(i = 0; i<DATANODE_NUMBER; i++)
+		{
                         sem_v(semid,i);
-
+		}
 	if(DEW_DEBUG>=1)printf("go of out ProvideTask\n");
 
 	return NULL;
@@ -640,6 +642,7 @@ int ProvideTaskAlgorithm(int32_t * g_weight,pTaskHead g_pDatanodeTask)
 			for(i = 0; i<DATANODE_NUMBER; i++)
                 	{
                         if(g_pDatanodeTask[i].taskNum >0)sem_v(semid,i);
+			else g_feedbackVersion[i]++;		
                 	}
 
 			return 2;
@@ -652,6 +655,7 @@ int ProvideTaskAlgorithm(int32_t * g_weight,pTaskHead g_pDatanodeTask)
 	 for(i = 0; i<DATANODE_NUMBER; i++)
                 {
                         if(g_pDatanodeTask[i].taskNum >0)sem_v(semid,i);
+			else g_feedbackVersion[i]++;		
                 }
 
 		
