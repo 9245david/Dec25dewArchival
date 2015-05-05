@@ -29,6 +29,11 @@
 #define IP_LENGTH 15//192.168.0.111,长度会变化192.168.11.111
 #endif
 
+/*
+#ifndef TASK_END
+#define TASK_END 12
+#endif
+*/
 #pragma pack(push) //保存默认的对齐方式
 #pragma pack(1)
 typedef struct taskBlock{

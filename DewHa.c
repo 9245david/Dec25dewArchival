@@ -45,7 +45,7 @@ int32_t init_cluster()
 	char * p_rack_bit = NULL;
 //	printf("input the block num (<%d): ",NODE_BLKNUM*RACK_NODE*RACK_NUM/3);
 //	scanf("%d",&blk_id);
-	blk_id =6;
+	blk_id =TASK_END;
 	if(blk_id%8==0)
 	{
 	    single_node_mapLength=blk_id/8;

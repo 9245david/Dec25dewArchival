@@ -30,6 +30,9 @@
 #define BLK_SIZE (64*1024*1024UL) //数据块大小
 #define NODE_BLKNUM 10000 //单节点数据块个数
 
+#ifndef TASK_END
+#define TASK_END 18
+#endif
 //#define DEW_DEBUG 1
 #define DEW_DEBUG 2
 typedef struct block_lay{

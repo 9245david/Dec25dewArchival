@@ -146,6 +146,7 @@ void *handle_request(void * arg)
 	printf("while 等待信号量%s,",inet_ntoa(cliaddr.sin_addr));
     	sem_p(semid,node_num);
 	printf("while 获得信号两\n");
+	if( g_feedbackVersion[node_num]>g_versionNum)continue;
     	SendTaskToDatanode(connfd);//此处有一个DataTransportWrite
     	recv = DataTransportRead(connfd,recvbuff,sizeof(nFeedback));//首先接收数据长度参数
 
@@ -289,7 +290,11 @@ void SendTaskToDatanode(int32_t connfd)
 	assert(nodeID >= 0 && nodeID < DATANODE_NUMBER);
 	if(DEW_DEBUG >0)printf("inside SendTaskToDatanode %d\n",nodeID);
 	//taskLength = *(long *)(DatanodeTask[nodeID]);
-	taskLength =(g_pDatanodeTask[nodeID].taskNum)*sizeof(nTaskBlock);
+	if(g_pDatanodeTask[nodeID].taskNum<0)taskLength = 0;
+	else
+	{
+		taskLength =(g_pDatanodeTask[nodeID].taskNum)*sizeof(nTaskBlock);
+	}
 	//taskLength += sizeof(long);
 	buff_datanode_task = (char*)malloc(taskLength*sizeof(char)+sizeof(int32_t));
 	assert(buff_datanode_task != NULL);
@@ -326,7 +331,7 @@ void SendTaskToDatanode(int32_t connfd)
 int32_t TaskSendFinished(int32_t connfd)
 //检查connfd对应的datanode的所有归档任务是否完成，如果完成，就返回1;否则返回0
 {
-	if(g_TaskStartBlockNum >= 6)return 1;
+	if(g_TaskStartBlockNum >= TASK_END)return 1;
 //	if(g_TaskStartBlockNum >= 996)return 1;
 		else return 0;
 	//return 0;
@@ -449,7 +454,7 @@ void *ProvideTask(void *arg)
                 if(DEW_DEBUG ==1)printf("before send g_send_end in ProvideTask\n");
 	 for(i=0;i<DATANODE_NUMBER;i++)
                 {
-                        g_pDatanodeTask[i].taskNum = 0;
+                        g_pDatanodeTask[i].taskNum = -1;
                         g_pDatanodeTask[i].singleStripTask = NULL;
                 }
                 for(i = 0; i<DATANODE_NUMBER; i++)
@@ -477,7 +482,7 @@ bool VersionUpdated()
 	}
 int32_t ProvideTaskFinished()//生成任务结束,等于1结束，等于0未结束
 {
-	if(g_TaskStartBlockNum >= 6)return 1;
+	if(g_TaskStartBlockNum >= TASK_END)return 1;
 //	if(g_TaskStartBlockNum >= 996)return 1;
 	else return 0;
 
@@ -495,6 +500,7 @@ int ProvideTaskAlgorithm(int32_t * g_weight,pTaskHead g_pDatanodeTask)
 	int32_t local_node_ID = 0;//本地节点号
 	int32_t i,j,k=0;
 	int32_t semid = sem_openid(key_task);
+	int32_t aready_task_num = 0;
 	list_head * weight_strp_lay = NULL;
 	list_head * p_temp_node = NULL;
 	list_head * p_temp_blk_head = NULL;//子链表头节点
@@ -524,7 +530,7 @@ int ProvideTaskAlgorithm(int32_t * g_weight,pTaskHead g_pDatanodeTask)
 		task[i][j]=0;
 	}
 	strp_lay_head = get_strp_lay(g_TaskStartBlockNum);
-	if(DEW_DEBUG ==1)
+	if(DEW_DEBUG >=1)
 		{
 			printf("strp_lay g_TaskStartBlocNum %d\n",g_TaskStartBlockNum);
 			print_double_circular(strp_lay_head);
@@ -541,6 +547,12 @@ int ProvideTaskAlgorithm(int32_t * g_weight,pTaskHead g_pDatanodeTask)
 	
 	while(weight_strp_lay !=NULL)//一次循环对应一个条带的任务分配
 	{
+		  if(DEW_DEBUG >=1)
+                {
+                        printf("task lay1\n");
+                        print_double_circular(weight_strp_lay);
+                }
+
 		p_temp_node = weight_strp_lay->next;
 		node_num = 0;//初始化节点个数
 		while(p_temp_node != weight_strp_lay)//遍历所有任务节点
@@ -564,11 +576,12 @@ int ProvideTaskAlgorithm(int32_t * g_weight,pTaskHead g_pDatanodeTask)
 		if(run_plan == PLANA)
 			{
 			node_ID = task[0][0];
+			aready_task_num =  (g_pDatanodeTask +node_ID-1)->taskNum;
 			(g_pDatanodeTask +node_ID-1)->taskNum ++;
 			block_num = task[0][1];
 			(g_pDatanodeTask +node_ID-1)->singleStripTask = \
-					realloc((g_pDatanodeTask +node_ID-1)->singleStripTask,sizeof(nTaskBlock));
-			p_temp_task_block = (g_pDatanodeTask +node_ID-1)->singleStripTask;
+					realloc((g_pDatanodeTask +node_ID-1)->singleStripTask,(aready_task_num+1)*sizeof(nTaskBlock));
+			p_temp_task_block = (g_pDatanodeTask +node_ID-1)->singleStripTask+aready_task_num;
 			p_temp_task_block->chunkID = g_TaskStartBlockNum/(EREASURE_N-EREASURE_K);
 			for(i=0;i<EREASURE_N;i++)p_temp_task_block->localTaskBlock[i] = -1;//初始化数组为-1，void * ProcessChunkTask(void* argv)里面有用到
 			for(i=0;i<block_num;i++)p_temp_task_block->localTaskBlock[i] = task[0][i+2];
@@ -595,11 +608,12 @@ int ProvideTaskAlgorithm(int32_t * g_weight,pTaskHead g_pDatanodeTask)
 				{
 
 					local_node_ID = task[i][0];
+					aready_task_num =  (g_pDatanodeTask +local_node_ID-1)->taskNum;
 					(g_pDatanodeTask +local_node_ID-1)->taskNum ++;
 					block_num = task[i][1];
 					(g_pDatanodeTask +local_node_ID-1)->singleStripTask = \
-							realloc((g_pDatanodeTask +local_node_ID-1)->singleStripTask,sizeof(nTaskBlock));
-					p_temp_task_block = (g_pDatanodeTask +local_node_ID-1)->singleStripTask;
+							realloc((g_pDatanodeTask +local_node_ID-1)->singleStripTask,(aready_task_num+1)*sizeof(nTaskBlock));
+					p_temp_task_block = (g_pDatanodeTask +local_node_ID-1)->singleStripTask+aready_task_num;
 					p_temp_task_block->chunkID = g_TaskStartBlockNum/(EREASURE_N-EREASURE_K);
 					for(j=0;j<EREASURE_N;j++)p_temp_task_block->localTaskBlock[j] = -1;
 					for(j=0;j<block_num;j++)p_temp_task_block->localTaskBlock[j] = task[i][j+2];
@@ -637,26 +651,44 @@ int ProvideTaskAlgorithm(int32_t * g_weight,pTaskHead g_pDatanodeTask)
 //**************************
 
               
-		if(g_TaskStartBlockNum >= 6)
+		if(g_TaskStartBlockNum >= TASK_END)
 		{
 			for(i = 0; i<DATANODE_NUMBER; i++)
                 	{
-                        if(g_pDatanodeTask[i].taskNum >0)sem_v(semid,i);
+        /*   
+	             if(g_pDatanodeTask[i].taskNum >0)sem_v(semid,i);
 			else g_feedbackVersion[i]++;		
-                	}
+        */
+			sem_v(semid,i);  
+	      		}
 
 			return 2;
 		}
 		strp_lay_head = get_strp_lay(g_TaskStartBlockNum);
+		if(DEW_DEBUG >=1)
+                {
+                        printf("strp_lay g_TaskStartBlocNum %d\n",g_TaskStartBlockNum);
+                        print_double_circular(strp_lay_head);
+                }
+
 		weight_strp_lay = get_weight_strp_lay(strp_lay_head,g_weight);
+		 delete_tail_node(weight_strp_lay);
+		 if(DEW_DEBUG >=1)
+                {
+                        printf("task lay2\n");
+                        print_double_circular(weight_strp_lay);
+                }
 
 	}//while 一次循环对应一个条带的任务分配
 	
 	 for(i = 0; i<DATANODE_NUMBER; i++)
                 {
-                        if(g_pDatanodeTask[i].taskNum >0)sem_v(semid,i);
+               /*        
+		 if(g_pDatanodeTask[i].taskNum >0)sem_v(semid,i);
 			else g_feedbackVersion[i]++;		
-                }
+                */
+			sem_v(semid,i);
+		}
 
 		
 	if(DEW_DEBUG>=1)
@@ -713,7 +745,8 @@ void delete_tail_node(list_head * weight_strp_lay)
 	list_head * delete_tail =NULL;
 	list_head * list_blk = NULL;
 	Pblk_inverted delete_node = NULL;
-	assert(weight_strp_lay !=NULL);
+	if(weight_strp_lay==NULL)return;
+//	assert(weight_strp_lay !=NULL);
 	delete_tail = weight_strp_lay ->prev;
 	list_blk = &(container_of(delete_tail,Nblk_inverted,listNode)->listblk);
 	while(list_blk ->next == list_blk)

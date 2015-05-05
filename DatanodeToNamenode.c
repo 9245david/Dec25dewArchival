@@ -191,7 +191,8 @@ struct sockaddr_in cliaddr;
 		task_length = task_num;
 		if(DEW_DEBUG == 1)fprintf(stderr,"read task num is %ld\n",task_length);
 		    	//DataTransportRead(sock_DtoN,recvTaskBuff,task_length);
-		if(task_num == 0){g_recv_end =1;break;}
+	//	if(task_num == 0){g_recv_end =1;break;}
+		if(task_num == -1){g_recv_end =1;break;}
 		recv = DataTransportRead(sock_DtoN,recvTaskBuff,task_length * sizeof(nTaskBlock));
 		    	//接手namenode发送过来的任务
 		    		if(recv != task_length *sizeof(nTaskBlock))
@@ -333,7 +334,7 @@ void ProcessTask(char *recvTaskBuff,int64_t recv)
 	if(TaskNum == 0)
 	{
 	//	处理没有任务的情况
-       if(DEW_DEBUG >0)fprintf(stderr,"接受自NameNode的最后一次空任务\n");
+       if(DEW_DEBUG >0)fprintf(stderr,"本次接受的任务长度为0\n");
 	return;
 	}
 	pthread_task_num = (pthread_t *)malloc(TaskNum * sizeof(pthread_t));
