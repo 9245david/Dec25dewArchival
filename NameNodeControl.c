@@ -17,6 +17,16 @@
 #include "Name_Node_Control.h"
 #include "semtool.h"
 #include "err_backtrace.h"
+//34 35 44 45 46 47 50 52 53 54 55 58 59 63 64 65 67 68
+unsigned char dataNodeIP[18][IP_LENGTH] = {
+                "192.168.0.34","192.168.0.35","192.168.0.44",
+                "192.168.0.45","192.168.0.46","192.168.0.47",
+                "192.168.0.50","192.168.0.52","192.168.0.53",
+                "192.168.0.54","192.168.0.55","192.168.0.58",
+                "192.168.0.59","192.168.0.63","192.168.0.64",
+                "192.168.0.65","192.168.0.67","192.168.0.68"
+};
+
 FILE* logFile = NULL;//打开一个已经存在的文件
 pthread_mutex_t logFileLock;
 key_t key_task ;
@@ -30,6 +40,10 @@ int32_t main(int32_t argc,char**argv)
 
 	int32_t semid;
 	struct sigaction myAction;
+//system("ifconfig|grep \"inet addr:\"|grep -v \"127.0.0.1\"|cut -d: -f2|awk '{print $1}'");
+freopen("out.log","w",stdout);
+system("ifconfig");
+freopen("/dev/tty","w",stdout);
 myAction.sa_sigaction = print_reason;
 sigemptyset(&myAction.sa_mask);
 myAction.sa_flags = SA_RESTART | SA_SIGINFO;
@@ -246,10 +260,20 @@ void NodeRegist(int32_t nodeConnfd,char *nodeIP,int32_t nodeNum)
  * 参数nodeNum 为节点注册时的顺序，排在第几位连接的，先来计数，从1开始计数，由全局变量g_nodeRegist传入
  */
 {
+	int i ;
+	if(DEW_DEBUG>0)
+	{
+		for( i =0; i< 18;i++)
+		{
+			if(strcmp(nodeIP,dataNodeIP[i])==0)break;
+		}
+		assert(i<18);
+		nodeNum = i+1;
+	}
 	g_nodeConnfd[nodeNum - 1] = nodeConnfd;
 	memcpy(g_nodeIP[nodeNum - 1], nodeIP, strlen(nodeIP));
-	g_feedbackVersion[nodeNum - 1] = 1;
 	if(DEW_DEBUG >= 1)printf("节点号%d,IP %s 注册\n",nodeNum-1,nodeIP);
+	g_feedbackVersion[nodeNum - 1] = 1;
 
 	}
 void ProcessDatanodeState(char * buff, int64_t length, int32_t connfd)
@@ -347,6 +371,7 @@ void WriteTaskFeedbackLog(int32_t connfd,char *recvbuff,uint64_t length)
 	pthread_mutex_lock(&logFileLock);
 	fprintf(logFile,"wholeBandwidth %lf,available%lf,%lf,%lf",FeedbackDToN->wholeBandwidth,FeedbackDToN->availableBandwidth,FeedbackDToN->wholeStorageSpace,FeedbackDToN->availableStorageSpace);
 	fprintf(logFile,"finishedornot%u,allocated%u,finished%u,finishtime%u\n",FeedbackDToN->finishedOrNot,FeedbackDToN->allocatedTask,FeedbackDToN->finishedTask,FeedbackDToN->finishedTime);
+	fflush(logFile);
 	printf("%u,%u,%u,%u\n",FeedbackDToN->finishedOrNot,FeedbackDToN->allocatedTask,FeedbackDToN->finishedTask,FeedbackDToN->finishedTime);
 	pthread_mutex_unlock(&logFileLock);
 	/*

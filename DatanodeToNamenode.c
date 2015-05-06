@@ -68,7 +68,7 @@ void * DatanodeToNamenode(void * arg)
 	//pthread_mutex_init(&g_ServerLock);
 	//pthread_mutex_init(&g_FreeClientLock);
 	sock_DtoN = DatanodeRegistOnNamenode();//注册namenode
-	assert(sock_DtoN > -1);
+	assert(sock_DtoN > 0);
 	rt = pthread_create(&pthread_server,NULL,&DataToDataTaskServer,(void*)NULL);//响应连接
 		assert(0 == rt);
 	DatanodeControlwithNamenode(sock_DtoN);//任务信息的交流，以及时间控制
@@ -91,7 +91,7 @@ int32_t DatanodeRegistOnNamenode(void)
 	getsockname(sock_DtoN,(struct sockaddr*)&cliaddr,&len);
 	localIPaddress = inet_ntoa(cliaddr.sin_addr);
 	printf("local ip is %s\n",localIPaddress);
-	assert(sock_DtoN > -1);
+	assert(sock_DtoN > 0);
 	if(DataTransportRead(sock_DtoN,namenodeAck,7)!=7)
 	{
 		if(DEW_DEBUG ==2)
@@ -102,7 +102,7 @@ int32_t DatanodeRegistOnNamenode(void)
 		close(sock_DtoN);
 		return -1;
 		}
-	if(DEW_DEBUG ==1)printf("node regist sucucess\n");
+	if(DEW_DEBUG >=1)fprintf(stderr,"node regist sucucess socket is %d\n",sock_DtoN);
 	return sock_DtoN;//返回连接之后的套接字，方便之后与namenode通信
    // close(sock_DtoN);//所有任务完成了才能关闭
 	}
@@ -141,11 +141,12 @@ struct sockaddr_in cliaddr;
 
 	if(DataTransportWrite(sock_DtoN, (char*)FeedbackDToN, length) != length)
 		{
-			printf(" write data to namenode error\n");
+			fprintf(stderr," write data to namenode error\n");
 			close(sock_DtoN);
 			return -1;
 		}
 	
+	assert(sock_DtoN > 0);
 	if(DEW_DEBUG==1)printf("receive time\n");
 //	recv = DataTransportRead(sock_DtoN,recvTaskBuff,sizeof(struct timeval));
 	recv = DataTransportRead(sock_DtoN,recvTaskBuff,sizeof(int32_t));
@@ -193,7 +194,12 @@ struct sockaddr_in cliaddr;
 		    	//DataTransportRead(sock_DtoN,recvTaskBuff,task_length);
 	//	if(task_num == 0){g_recv_end =1;break;}
 		if(task_num == -1){g_recv_end =1;break;}
+
+	assert(sock_DtoN > 0);
+	fprintf(stderr,"sock %d,task_length %lld,sizeof(nTaskBlock)is %lld,local ip %s\n",sock_DtoN,task_length,task_length*sizeof(nTaskBlock),localIPaddress);
 		recv = DataTransportRead(sock_DtoN,recvTaskBuff,task_length * sizeof(nTaskBlock));
+	if(sock_DtoN == 0)fprintf(stderr,"sock %d,task_length %ld,local ip %s\n",sock_DtoN,task_length,localIPaddress);
+//	assert(sock_DtoN > 0);
 		    	//接手namenode发送过来的任务
 		    		if(recv != task_length *sizeof(nTaskBlock))
 		    		{
@@ -224,10 +230,11 @@ struct sockaddr_in cliaddr;
 			FeedbackDToN->finishedOrNot =0;
 		}
                 if(DEW_DEBUG >0)fprintf(stderr,"发送feedback,local ip %s\n",localIPaddress);
+		assert(sock_DtoN>0);
 		send = DataTransportWrite(sock_DtoN, (char*)FeedbackDToN, length);
 		if(send != length)
 		{
-			printf("send feedback error \n");
+			fprintf(stderr,"send feedback error \n");
 			return -1;
 		}
 		pthread_mutex_lock(&lockFeedback);

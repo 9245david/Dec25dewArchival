@@ -20,6 +20,10 @@ strings = backtrace_symbols(array, size);
 fprintf(stderr,"Obtained %zd stack frames.\n", size);
 for (i = 0; i < size; i++)
 fprintf(stderr,"%s\n", strings[i]);
+//	system(ifconfig|grep "inet addr:"|grep -v "127.0.0.1"|cut -d: -f2|awk '{print $1}');
+freopen("out.log","w",stdout);
+system("ifconfig");
+ freopen("/dev/tty","w",stdout);
 free(strings);
 #else
 int fd = open("err.log", O_CREAT | O_WRONLY);

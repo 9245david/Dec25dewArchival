@@ -89,9 +89,9 @@ void * ProcessChunkTask(void* argv)
 	pSingleBuff * pLocalBuff = NULL;
 	list_head * pSearch = NULL;
 	assert((pChunkTask->destIPNum>=0)&&(pChunkTask->destIPNum<=18));
-	connfdClient = (pConnect*)malloc((pChunkTask->destIPNum) * sizeof(pConnect));
+	//connfdClient = (pConnect*)malloc((pChunkTask->destIPNum) * sizeof(pConnect));
 	//需要连接的服务端个数
-	assert(connfdClient != NULL);
+//	assert(connfdClient != NULL);
 	localBlock = pChunkTask -> localTaskBlock;
 	while(*(localBlock+localNum) != -1)
 		{
@@ -118,21 +118,26 @@ void * ProcessChunkTask(void* argv)
 
 		}
 	if(localNum ==2)fprintf(stderr,"chunk after AskForMemory()\n");
-	for(i=0;i<pChunkTask -> destIPNum;i++)
+/*	for(i=0;i<pChunkTask -> destIPNum;i++)
 	{
 
 		*(connfdClient+i) = ApplyForClientConnection(pChunkTask,i);
 	}
+*/
 	if(DEW_DEBUG>0){if(i==0)fprintf(stderr,"it's dest\n");}
 	thread_client_num = (pthread_t*)malloc(localNum*sizeof(pthread_t));
 	if(localNum !=0)assert(thread_client_num != NULL);
 	if((pChunkTask->encode == 0) &&(localNum >0)&&(pChunkTask->waitForBlock == 0)&&(pChunkTask->destIPNum >0))//不需编码，即直接发送数据,无需接收数据
 	{
 	//		assert(localNum == pChunkTask -> destIPNum);//出错不是每个目标节点只发送一个数据
+ 		connfdClient = (pConnect*)malloc(localNum * sizeof(pConnect));
+       			 //需要连接的服务端个数
+		      assert(connfdClient != NULL);
 
 			for(i=0;i<localNum;i++)
 			{
 					//	SendBackMemory(connfdClient[i].pBuffPice);
+				 *(connfdClient+i) = ApplyForClientConnection(pChunkTask,0);
 				connfdClient[i]->pBuffPice = *(pLocalBuff+i);
 				pthread_create(thread_client_num+i,NULL,&SendData,(void*)(*(connfdClient+i)));
 			//	thread_client_num++;
@@ -150,6 +155,16 @@ void * ProcessChunkTask(void* argv)
 	else if((pChunkTask->waitForBlock ==0)&&(pChunkTask->encode !=0)&&(localNum >0)&&(pChunkTask->destIPNum >0))
 	//需要编码，但是无需等待数据，只需要本地数据
 	{
+		 connfdClient = (pConnect*)malloc((pChunkTask->destIPNum) * sizeof(pConnect));
+         		 //需要连接的服务端个数
+ 		      assert(connfdClient != NULL);
+
+		for(i=0;i<pChunkTask -> destIPNum;i++)
+        	{
+ 
+                	 *(connfdClient+i) = ApplyForClientConnection(pChunkTask,i);
+         	}
+
 		//for(i=0;i<localNum;i++)
 		for(i=0;i<EREASURE_K;i++)
 			{
@@ -178,6 +193,16 @@ void * ProcessChunkTask(void* argv)
 	else if((pChunkTask->waitForBlock != 0) &&(pChunkTask->encode !=0)&&(localNum>0)&&(pChunkTask->destIPNum >0))//需要编码且需要等待数据
 		//获取的匹配server端是带连接信息的已经申请好了内存，不用将该结构还给链表，只用将内存还给内存模块
 	{
+		connfdClient = (pConnect*)malloc((pChunkTask->destIPNum) * sizeof(pConnect));
+                          //需要连接的服务端个数
+                       assert(connfdClient != NULL);
+ 
+                 for(i=0;i<pChunkTask -> destIPNum;i++)
+                 {        
+ 
+                          *(connfdClient+i) = ApplyForClientConnection(pChunkTask,i);
+                 }
+
 		pChunkTranport = (pTransportBlock)malloc(sizeof(nTransportBlock));
 		connfdServer = (pConnectServer*)malloc((pChunkTask->waitForBlock)*sizeof(pConnectServer));
 		assert(connfdServer != NULL);
