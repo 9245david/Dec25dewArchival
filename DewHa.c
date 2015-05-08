@@ -767,6 +767,7 @@ int32_t print_double_circular(list_head* strp_lay_head)
 	list_head *p_Head_blk=NULL;//每个子链的listblk 头节点
 	list_head *p_temp_blk=NULL;//每个子链的listblk 临时指针
 	Pblk_inverted pTemp=NULL;
+	if(strp_lay_head == NULL)return 0;
 	p_Head_node = strp_lay_head->next;
 	while(p_Head_node!=strp_lay_head)
 	{

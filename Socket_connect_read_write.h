@@ -8,7 +8,7 @@
 #ifndef SOCKET_CONNECT_READ_WRITE_H_
 #include "aa.h"
 #define SOCKET_CONNECT_READ_WRITE_H_
-#define DATA_TO_NAME_PORT 6000
+#define DATA_TO_NAME_PORT 6780
 //#define NAME_TO_DATA_PORT 6000 //no need
 //#define DEW_DEBUG 1
 #define DEW_DEBUG 2

@@ -31,12 +31,23 @@ if(!inet_aton(arg->Namenode_ADDR,&srvaddr.sin_addr))
 {printf("bad address\n");exit(-1);}
 
 /*用connect于这个远程服务器建立一个internet连接*/
-
+/*
 if(connect(sock_fd,(struct sockaddr*)&srvaddr,sizeof(struct sockaddr))==-1)
 {
 	fprintf(stderr,"error dest addr %s\n",arg->Namenode_ADDR);
 	perror("connect error");
 	exit(-1);
+}
+*/
+while(connect(sock_fd,(struct sockaddr*)&srvaddr,sizeof(struct sockaddr))==-1)
+{
+	if(errno == EINTR)continue;
+	else
+	{	
+		fprintf(stderr,"error dest addr %s\n",arg->Namenode_ADDR);
+		perror("connect error");
+		exit(-1);
+	}
 }
 return sock_fd;
 }
@@ -46,8 +57,17 @@ int64_t DataTransportRead(int32_t sock_fd,char * buffer,int64_t length)
 {
 	int64_t totalsize = 0;
 	int64_t recvsize = 0;
+	 struct sockaddr_in cliaddr;
+	 struct sockaddr_in servaddr;
+        socklen_t len;
+
 	assert(length >=0);
+	assert(buffer!=NULL);
 	if(length == 0)return 0;
+	len = sizeof(struct sockaddr_in);
+        getpeername(sock_fd,(struct sockaddr*)&cliaddr,&len);
+        getsockname(sock_fd,(struct sockaddr*)&servaddr,&len);
+	
 	while(totalsize<length)
 	{
 		recvsize=read(sock_fd,buffer+totalsize,length-totalsize);
@@ -56,7 +76,8 @@ int64_t DataTransportRead(int32_t sock_fd,char * buffer,int64_t length)
 			if(errno==EINTR)recvsize = 0;//请求被中断
 				else {
 					perror("read error dew\n");
-					fprintf(stderr,"sockfd =%d,buffer = %p,length =%ld\n",sock_fd,buffer,length);	
+					fprintf(stderr,"sockfd =%d,buffer = %p,length =%ld,local%s,dest%s\n",\
+						sock_fd,buffer,length,inet_ntoa(servaddr.sin_addr),inet_ntoa(cliaddr.sin_addr));	
 					return -1;
 				}
 		}else if (recvsize == 0)continue;
@@ -69,8 +90,16 @@ int64_t DataTransportWrite(int32_t sock_fd,char * buffer,int64_t length)
 {
         int64_t totalsize = 0;
         int64_t sendsize = 0;
+	struct sockaddr_in cliaddr;
+        struct sockaddr_in servaddr;
+        socklen_t len;
 	assert(length >=0);
+	assert(buffer!=NULL);
 	if(length == 0)return 0;
+	len = sizeof(struct sockaddr_in);
+        getpeername(sock_fd,(struct sockaddr*)&cliaddr,&len);
+        getsockname(sock_fd,(struct sockaddr*)&servaddr,&len);
+
         while(totalsize<length)
         {
             sendsize=write(sock_fd,buffer+totalsize,length-totalsize);
@@ -78,7 +107,10 @@ int64_t DataTransportWrite(int32_t sock_fd,char * buffer,int64_t length)
              {
                 if(errno==EINTR)sendsize = 0;
                 else{
-			fprintf(stderr,"sockfd =%d,buffer = %p,length =%ld",sock_fd,buffer,length);	
+			//fprintf(stderr,"sockfd =%d,buffer = %p,length =%ld",sock_fd,buffer,length);	
+
+			fprintf(stderr,"sockfd =%d,buffer = %p,length =%ld,local%s,dest%s\n",\
+						sock_fd,buffer,length,inet_ntoa(servaddr.sin_addr),inet_ntoa(cliaddr.sin_addr));	
                 	perror("write error dew\n");
                 	return -1;
                 }

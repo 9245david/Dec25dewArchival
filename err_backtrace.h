@@ -31,5 +31,6 @@ size = backtrace(array, 10);
 backtrace_symbols_fd(array, size, fd);
 close(fd);
 #endif
+fflush(NULL);
 exit(0);
 }

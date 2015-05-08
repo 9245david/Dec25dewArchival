@@ -21,7 +21,7 @@
 #ifndef IP_LENGTH
 #define IP_LENGTH 15
 #endif
-#define NAME_PORT 6000
+#define NAME_PORT 6780
 #define  BACKLOG 20
 
 #pragma pack(push)

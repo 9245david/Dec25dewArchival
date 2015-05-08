@@ -37,6 +37,7 @@ pthread_mutex_t g_finished_task_lock;
 int32_t main(int32_t argc,char** argv)
 {
 	struct sigaction myAction;
+system("ifconfig");
 myAction.sa_sigaction = print_reason;
 sigemptyset(&myAction.sa_mask);
 myAction.sa_flags = SA_RESTART | SA_SIGINFO;
@@ -135,9 +136,10 @@ struct sockaddr_in cliaddr;
 	assert(sock_DtoN > 0);
 	FeedbackDToN = (pFeedback)malloc(sizeof(nFeedback));
 	FeedbackDToN->allocatedTask = 0;
-	FeedbackDToN->availableBandwidth = 64;
+	FeedbackDToN->availableBandwidth = 16;
 	FeedbackDToN->wholeBandwidth = 100;
 	FeedbackDToN->finishedOrNot =1;
+	FeedbackDToN->finishedTime =20;
 
 	if(DataTransportWrite(sock_DtoN, (char*)FeedbackDToN, length) != length)
 		{
@@ -218,9 +220,10 @@ struct sockaddr_in cliaddr;
 		//如果是最后一次任务，即空任务，此时ProcessTask函数会将TaskRecvFinished设置为1
 		while(sendFeedback == false);//时间到了发送任务反馈给namenode
 		FeedbackDToN-> allocatedTask = task_length;
-		FeedbackDToN->availableBandwidth = 64;
+		FeedbackDToN->availableBandwidth = 16;
 		FeedbackDToN->wholeBandwidth = 100;
 		FeedbackDToN->finishedTask = g_finished_task;
+		FeedbackDToN->finishedTime =20;
 		if(g_finished_task >= task_length)
 		{
 			FeedbackDToN->finishedOrNot =1;
@@ -252,9 +255,10 @@ struct sockaddr_in cliaddr;
                 //如果是最后一次任务，即空任务，此时ProcessTask函数会将TaskRecvFinished设置为1
                 while(sendFeedback == false);//时间到了发送任务反馈给namenode
                 FeedbackDToN-> allocatedTask = task_length;
-                FeedbackDToN->availableBandwidth = 64;
+                FeedbackDToN->availableBandwidth = 16;
                 FeedbackDToN->wholeBandwidth = 100;
                 FeedbackDToN->finishedTask = g_finished_task;
+		FeedbackDToN->finishedTime =20;
                 if(g_finished_task >= task_length)
                 {
                         FeedbackDToN->finishedOrNot =1;

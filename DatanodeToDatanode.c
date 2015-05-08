@@ -68,7 +68,7 @@ pMemory g_pFreeMemoryList = NULL;//所有的内存
 pthread_mutex_t g_memoryLock;
 pthread_mutex_t g_FreeClientLock;//需要初始化
 pthread_mutex_t g_ServerLock;//需要初始化
-
+int32_t g_client_exist = 0;//值为1时表示g_pServerBuffList存有已连接套接字
 void * ProcessChunkTask(void* argv)
 {
 	pTaskBlock pChunkTask = (pTaskBlock)argv;//某一个块的任务
@@ -209,6 +209,7 @@ void * ProcessChunkTask(void* argv)
 		for(i=0;i<pChunkTask->waitForBlock;i++)
 		{
 			TraslateTaskToServer(pChunkTask,i,pChunkTranport);//等待的哪一个数据块
+			while(g_client_exist == 0);
 			pSearch = &(g_pServerBuffList->listConnect);
 			while(1)//一直等待，直到连接被建立
 			{
@@ -253,6 +254,7 @@ void * ProcessChunkTask(void* argv)
                 for(i=0;i<pChunkTask->waitForBlock;i++)
                 {
                         TraslateTaskToServer(pChunkTask,i,pChunkTranport);//等待的哪一个数据块
+			while(g_client_exist == 0);
                         pSearch = &(g_pServerBuffList->listConnect);
                         while(1)//一直等待，直到连接被建立
                         {
@@ -462,10 +464,10 @@ pSingleBuff AskForMemory()//向内存模块申请内存，需要加锁因为不�
 	//不为空，但是没有了内存片，增加一个内存片
 	{
 		tmpMemory = (pMemory)malloc(sizeof(nMemory));
-		assert(tmpMemory !=NULL);
+		assert(tmpMemory != NULL);
 		list_add_tail(&(tmpMemory->listMemory),&(g_pFreeMemoryList->listMemory));
 		tmpBuff = (char*)malloc(BUFF_SIZE*sizeof(char));
-		assert(tmpBuff ==NULL);
+		assert(tmpBuff != NULL);
 		tmpSingleBuff = (pSingleBuff)malloc(sizeof(nSingleBuff));
 		assert(tmpSingleBuff != NULL);
 //		tmpSingleBuff -> buff = tmpBuff;
@@ -478,9 +480,9 @@ pSingleBuff AskForMemory()//向内存模块申请内存，需要加锁因为不�
 
 		tmpMemory->pBuffPice = tmpSingleBuff;
 	}
-	if(DEW_DEBUG>0)fprintf(stderr,"inside 1 askformemmory\n");
+	if(DEW_DEBUG>4)fprintf(stderr,"inside 1 askformemmory\n");
 	tmpMemory = container_of(g_pFreeMemoryList->listMemory.prev,nMemory,listMemory);
-	if(DEW_DEBUG>0)fprintf(stderr,"inside 1.5 askformemmory\n");
+	if(DEW_DEBUG>4)fprintf(stderr,"inside 1.5 askformemmory\n");
 	tmpSingleBuff = tmpMemory->pBuffPice;//对于if 和 else if的条件这句话是不需要的导致了这个错误
 	tmpSingleBuff -> buffSize = BUFF_SIZE;
 	tmpSingleBuff -> pice = BUFF_PICE_SIZE;
@@ -488,7 +490,7 @@ pSingleBuff AskForMemory()//向内存模块申请内存，需要加锁因为不�
 	tmpSingleBuff -> end = 0;//end < buffSize/pice;
 	tmpSingleBuff -> length = 0;
 //	tmpSingleBuff = tmpMemory ->pBuffPice;//在这里赋值有什么鬼用
-	if(DEW_DEBUG>0)fprintf(stderr,"inside 2 askformemmory\n");
+	if(DEW_DEBUG>4)fprintf(stderr,"inside 2 askformemmory\n");
 	
 	list_del(g_pFreeMemoryList->listMemory.prev);
 	pthread_mutex_unlock(&g_memoryLock);
@@ -643,7 +645,7 @@ void *handle_request(void * arg)
 	assert(pChunkTransport!=NULL);
 	connfd = *((int32_t*)arg);
 //	free(arg);//抽风free 了连接套接子
-	if(DEW_DEBUG >0)fprintf(stderr,"inside hanlde_request %d\n",connfd);
+	if(DEW_DEBUG >4)fprintf(stderr,"inside hanlde_request %d\n",connfd);
 	pthread_mutex_lock(&g_ServerLock);
 			if(g_pServerBuffList == NULL)
 			{
@@ -658,14 +660,15 @@ void *handle_request(void * arg)
 			tmpConnectServer->pBuffPice = AskForMemory();
 	//		tmpConnectServer->pBuffPice = (pSingleBuff)malloc(sizeof(nSingleBuff));//for debug AskForMemory
 			tmpConnectServer->pChunkTransport = pChunkTransport;
-	if(DEW_DEBUG >0)fprintf(stderr,"inside hanlde_request 2 %d\n",connfd);
+	if(DEW_DEBUG >4)fprintf(stderr,"inside hanlde_request 2 %d\n",connfd);
 			list_add_tail(&(tmpConnectServer->listConnect),&(g_pServerBuffList->listConnect));
-	if(DEW_DEBUG >0)fprintf(stderr,"inside hanlde_request 2.2 %d\n",connfd);
+	if(DEW_DEBUG >4)fprintf(stderr,"inside hanlde_request 2.2 %d\n",connfd);
+			if(g_client_exist == 0)g_client_exist = 1;
 			pthread_mutex_unlock(&g_ServerLock);
 	while(1)//反复利用不同的数据块
 	{
 
-	    if(DEW_DEBUG >0)fprintf(stderr,"inside hanlde_request while,read data\n");
+	    if(DEW_DEBUG >4)fprintf(stderr,"inside hanlde_request while,read data\n");
 		recv = DataTransportRead(connfd,(char*)pChunkTransport,sizeof(nTransportBlock));
 		if(recv<0)
 		{

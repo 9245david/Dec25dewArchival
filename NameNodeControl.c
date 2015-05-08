@@ -42,8 +42,8 @@ int32_t main(int32_t argc,char**argv)
 	struct sigaction myAction;
 //system("ifconfig|grep \"inet addr:\"|grep -v \"127.0.0.1\"|cut -d: -f2|awk '{print $1}'");
 freopen("out.log","w",stdout);
-system("ifconfig");
-freopen("/dev/tty","w",stdout);
+//system("ifconfig");
+//freopen("/dev/tty","w",stdout);
 myAction.sa_sigaction = print_reason;
 sigemptyset(&myAction.sa_mask);
 myAction.sa_flags = SA_RESTART | SA_SIGINFO;
@@ -613,6 +613,7 @@ int ProvideTaskAlgorithm(int32_t * g_weight,pTaskHead g_pDatanodeTask)
 			p_temp_task_block->waitForBlock = EREASURE_N-EREASURE_K - block_num;
 			p_temp_task_block->encode = 1;
 			p_temp_task_block->waitedBlockType = 0;
+			for(j=0;j<EREASURE_N;j++)p_temp_task_block->waitedBlock[j] = -1;
 			if(p_temp_task_block->waitForBlock > 0)
 			{
 				j=0;
@@ -646,6 +647,7 @@ int ProvideTaskAlgorithm(int32_t * g_weight,pTaskHead g_pDatanodeTask)
 					p_temp_task_block->encode = 0;
 					p_temp_task_block->waitedBlockType = 0;
 					//p_temp_task_block->waitedBlock[j++] = 0;//不等待数据，无需接收数据
+					for(j=0;j<EREASURE_N;j++)p_temp_task_block->waitedBlock[j] = -1;
 					p_temp_task_block->destIPNum =1;
 					memcpy(p_temp_task_block->destIP[0],g_nodeIP[node_ID-1],IP_LENGTH);
 

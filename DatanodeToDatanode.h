@@ -13,8 +13,8 @@
 #include "BlockStruct.h"
 #include "Socket_connect_read_write.h"
 #include "dew_list.h"
-#define DATANODE_PORT 6001
-#define  BACKLOG 20
+#define DATANODE_PORT 6781
+#define  BACKLOG 50
 #ifndef DEW_DEBUG
 //#define DEW_DEBUG 1
 #define DEW_DEBUG 2
