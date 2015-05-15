@@ -59,6 +59,7 @@ typedef struct transportBlock{
 
 #include "DatanodeToDatanode.h"
 extern int32_t g_finished_task;
+extern int32_t g_unfinished_task;
 extern pthread_mutex_t g_finished_task_lock;
 extern int32_t g_recv_end ;
 pConnect g_pFreeClientBuffList = NULL;
@@ -137,7 +138,7 @@ void * ProcessChunkTask(void* argv)
 			for(i=0;i<localNum;i++)
 			{
 					//	SendBackMemory(connfdClient[i].pBuffPice);
-				 *(connfdClient+i) = ApplyForClientConnection(pChunkTask,0);
+				 *(connfdClient+i) = ApplyForClientConnection(pChunkTask,i);
 				connfdClient[i]->pBuffPice = *(pLocalBuff+i);
 				pthread_create(thread_client_num+i,NULL,&SendData,(void*)(*(connfdClient+i)));
 			//	thread_client_num++;
@@ -286,6 +287,7 @@ void * ProcessChunkTask(void* argv)
 	}
 	pthread_mutex_lock(&g_finished_task_lock);
 	g_finished_task++;
+	g_unfinished_task--;
 	pthread_mutex_unlock(&g_finished_task_lock);
         if(DEW_DEBUG >0)fprintf(stderr,"pchunktask finished\n");
 	
@@ -382,22 +384,22 @@ void EncodeData(pConnectServer* connfdServer,pSingleBuff* pLocalBuff,pConnect* c
 		assert(i<(EREASURE_N-EREASURE_K));
 		localNum ++;
 	}
-	while((piceNum--)>=0)
+	while((piceNum--)>0)
 	{
 		for(i=0;i<localNum;i++)
 		{
-			while((*(pLocalBuff+i))->length ==0){};
+			while((*(pLocalBuff+i))->length <=0){usleep(10000);};
 		}
 
 		for(i=0;i<serverNum;i++)//当connfdServer == NULL 时，serverNum ==0
 		{
 			assert(connfdServer!=NULL);
-			while((*(connfdServer+i))->pBuffPice->length==0){};
+			while((*(connfdServer+i))->pBuffPice->length<=0){usleep(10000);};
 		}
 		//编码数据块操作，暂时省略，就是将k带入计算
 		for(i=0;i<localNum;i++)
 		{
-			(*(pLocalBuff+i))->start = (*(pLocalBuff+i))->start +1;
+			(*(pLocalBuff+i))->start = ((*(pLocalBuff+i))->start +1)%(BUFF_SIZE/BUFF_PICE_SIZE);
 			pthread_mutex_lock(&((*(pLocalBuff+i))->buffLock));
 			(*(pLocalBuff+i))->length = (*(pLocalBuff+i))->length -1;
 			pthread_mutex_unlock(&((*(pLocalBuff+i))->buffLock));
@@ -405,7 +407,7 @@ void EncodeData(pConnectServer* connfdServer,pSingleBuff* pLocalBuff,pConnect* c
 		for(i=0;i<serverNum;i++)
 		{
 			assert(connfdServer!=NULL);
-			(*(connfdServer+i))->pBuffPice->start = (*(connfdServer+i))->pBuffPice->start +1;
+			(*(connfdServer+i))->pBuffPice->start = ((*(connfdServer+i))->pBuffPice->start +1)%(BUFF_SIZE/BUFF_PICE_SIZE);
 			pthread_mutex_lock(&((*(connfdServer+i))->pBuffPice->buffLock));
 			(*(connfdServer+i))->pBuffPice->length = (*(connfdServer+i))->pBuffPice->length -1;
 			pthread_mutex_unlock(&((*(connfdServer+i))->pBuffPice->buffLock));
@@ -413,7 +415,8 @@ void EncodeData(pConnectServer* connfdServer,pSingleBuff* pLocalBuff,pConnect* c
 		}
 		for(i=0;i<clientNum;i++)
 		{
-			connfdClient[i]->pBuffPice->end = connfdClient[i]->pBuffPice->end + 1;
+			while(connfdClient[i]->pBuffPice->length >= BUFF_SIZE/BUFF_PICE_SIZE){usleep(10000);}
+			connfdClient[i]->pBuffPice->end = (connfdClient[i]->pBuffPice->end + 1)%(BUFF_SIZE/BUFF_PICE_SIZE);
 			pthread_mutex_lock(&(connfdClient[i]->pBuffPice->buffLock));
 			connfdClient[i]->pBuffPice->length = connfdClient[i]->pBuffPice->length + 1;
 			pthread_mutex_unlock(&(connfdClient[i]->pBuffPice->buffLock));
@@ -470,7 +473,7 @@ pSingleBuff AskForMemory()//向内存模块申请内存，需要加锁因为不�
 		assert(tmpBuff != NULL);
 		tmpSingleBuff = (pSingleBuff)malloc(sizeof(nSingleBuff));
 		assert(tmpSingleBuff != NULL);
-//		tmpSingleBuff -> buff = tmpBuff;
+		tmpSingleBuff -> buff = tmpBuff;
 //		tmpSingleBuff -> buffSize = BUFF_SIZE;
 //		tmpSingleBuff -> pice = BUFF_PICE_SIZE;
 //		tmpSingleBuff -> start = 0;
@@ -494,6 +497,7 @@ pSingleBuff AskForMemory()//向内存模块申请内存，需要加锁因为不�
 	
 	list_del(g_pFreeMemoryList->listMemory.prev);
 	pthread_mutex_unlock(&g_memoryLock);
+	assert(tmpSingleBuff!=NULL);
 	return tmpSingleBuff;
 	}
 
@@ -549,7 +553,8 @@ void TraslateTaskToTransport(pTaskBlock pChunkTask,int32_t destNum,pTransportBlo
 	{
 		pChunkTransport->blockType = 0;
 		pChunkTransport->blockID = pChunkTask->localTaskBlock[destNum];
-		pChunkTransport->chunkID = (pChunkTransport->blockID)/(EREASURE_N - EREASURE_K);
+//		pChunkTransport->chunkID = (pChunkTransport->blockID)/(EREASURE_N - EREASURE_K);
+		pChunkTransport->chunkID = pChunkTask->chunkID;
 		pChunkTransport->parityID = -1;
 	}
 	else
@@ -557,7 +562,7 @@ void TraslateTaskToTransport(pTaskBlock pChunkTask,int32_t destNum,pTransportBlo
 		pChunkTransport->blockType = pChunkTask-> waitedBlockType;
 		for(i=0;i<localNum;i++)
 		{
-			offsetInsideChunk=(pChunkTask->localTaskBlock[i])%(EREASURE_N - EREASURE_K);
+			offsetInsideChunk=(pChunkTask->localTaskBlock[i]-1)%(EREASURE_N - EREASURE_K);
 			pChunkTransport->blockType = (pChunkTransport->blockType)|(0x1<<offsetInsideChunk);
 		}
 		pChunkTransport->blockID = -1;
@@ -665,9 +670,11 @@ void *handle_request(void * arg)
 	if(DEW_DEBUG >4)fprintf(stderr,"inside hanlde_request 2.2 %d\n",connfd);
 			if(g_client_exist == 0)g_client_exist = 1;
 			pthread_mutex_unlock(&g_ServerLock);
+	assert(tmpConnectServer->pBuffPice !=NULL);
 	while(1)//反复利用不同的数据块
 	{
 
+	    assert(tmpConnectServer->pBuffPice !=NULL);
 	    if(DEW_DEBUG >4)fprintf(stderr,"inside hanlde_request while,read data\n");
 		recv = DataTransportRead(connfd,(char*)pChunkTransport,sizeof(nTransportBlock));
 		if(recv<0)
@@ -682,11 +689,18 @@ void *handle_request(void * arg)
 		}
 
 		piceNum = (BLOCK_SIZE/BUFF_PICE_SIZE);
-		while((piceNum--)>=0)
+		while((piceNum--)>0)
 		{
 			pBuffPice = tmpConnectServer->pBuffPice;
-			while(pBuffPice->length ==(BUFF_SIZE/BUFF_PICE_SIZE));
-
+			while(pBuffPice->length >=(BUFF_SIZE/BUFF_PICE_SIZE));
+			
+			if(pBuffPice->length > BUFF_SIZE/BUFF_PICE_SIZE)fprintf(stderr,"length error %d\n",pBuffPice->length);
+			assert(pBuffPice->length < BUFF_SIZE/BUFF_PICE_SIZE);
+			if((pBuffPice->buff+(pBuffPice->end)*BUFF_PICE_SIZE)==NULL)
+			fprintf(stderr,"piceNum =%lld,pBuffPice->buff = %p,pBuffPice->end = %d\n",\
+								piceNum,pBuffPice->buff,pBuffPice->end);
+			assert((pBuffPice->buff+(pBuffPice->end)*BUFF_PICE_SIZE)!=NULL);
+			pthread_mutex_lock(&(pBuffPice->buffLock));
 			recv = DataTransportRead(connfd,pBuffPice->buff+(pBuffPice->end)*BUFF_PICE_SIZE,BUFF_PICE_SIZE);
 			if(recv<0)
 					{
@@ -699,10 +713,12 @@ void *handle_request(void * arg)
 						return NULL;
 					}
 			pBuffPice->end = (pBuffPice->end +1)%(BUFF_SIZE/BUFF_PICE_SIZE);
-			pthread_mutex_lock(&(pBuffPice->buffLock));
 			pBuffPice->length = pBuffPice->length +1;
+			if(pBuffPice->length > BUFF_SIZE/BUFF_PICE_SIZE)fprintf(stderr,"length error %d,start %d,end %d\n",pBuffPice->length,pBuffPice->start,pBuffPice->end);
+				assert(pBuffPice->length <= BUFF_SIZE/BUFF_PICE_SIZE);
 			pthread_mutex_unlock(&(pBuffPice->buffLock));
 
+			usleep(10000);
 		}
 
 	}
@@ -717,17 +733,20 @@ void *SendData(void*arg)//只是发送缓存，发送数据，发送完成之后
 	int32_t err = 0;
 	 if(DEW_DEBUG ==1)printf("inside SendData\n");
 	pthread_detach(pthread_self());
-	while((piceNum--)>=0)
+	while((piceNum--)>0)
 			{
-				while(pBuffPice->length ==0);
+				while(pBuffPice->length <=0);
 
+				assert(pBuffPice->length >0);
+				pthread_mutex_lock(&(pBuffPice->buffLock));
 				err = DataTransportWrite(connfd,pBuffPice->buff+(pBuffPice->start)*BUFF_PICE_SIZE,BUFF_PICE_SIZE);
 				if(err <0)fprintf(stderr,"write pbuffpice err\n");
 				pBuffPice->start = (pBuffPice->start +1)%(BUFF_SIZE/BUFF_PICE_SIZE);
-				pthread_mutex_lock(&(pBuffPice->buffLock));
 				pBuffPice->length = pBuffPice->length -1;
+			if(pBuffPice->length < 0)fprintf(stderr,"length error %d,start %d, end %d\n",pBuffPice->length,pBuffPice->start,pBuffPice->end);
+				assert(pBuffPice->length >=0);
 				pthread_mutex_unlock(&(pBuffPice->buffLock));
-
+				usleep(10000);
 			}
 	pthread_exit(0);
 	//return NULL;
@@ -748,16 +767,20 @@ void *ReadLocalData(void * arg)
 	 pBuffPice = p_tmpLocalData->pBuffPice;
 	//根据块号找到块偏移，读取数据块
 	offset = FindBlockOffset(localBlock);
-	while((piceNum--)>=0)
+	while((piceNum--)>0)
 	{
-		while(pBuffPice->length == (BUFF_SIZE/BUFF_PICE_SIZE)){};//缓存已满
+		while(pBuffPice->length >= (BUFF_SIZE/BUFF_PICE_SIZE)){};//缓存已满
+				assert(pBuffPice->length <BUFF_SIZE/BUFF_PICE_SIZE);
+		pthread_mutex_lock(&(pBuffPice->buffLock));
 		ReadDisk(offset,pBuffPice->buff+pBuffPice->length*BUFF_PICE_SIZE,BUFF_PICE_SIZE);
 
-		pthread_mutex_lock(&(pBuffPice->buffLock));
+		pBuffPice->end = (pBuffPice->end + 1)%(BUFF_SIZE/BUFF_PICE_SIZE);
 		pBuffPice->length = pBuffPice->length +1;
+			if(pBuffPice->length > BUFF_SIZE/BUFF_PICE_SIZE)fprintf(stderr,"length error %d,start %d,end %d\n",pBuffPice->length,pBuffPice->start,pBuffPice->end);
+		assert(pBuffPice->length <= BUFF_SIZE/BUFF_PICE_SIZE);
 		pthread_mutex_unlock(&(pBuffPice->buffLock));
 		//参数end，piceNum,offset读取本地磁盘数据pBuffPice->buff
-		pBuffPice->end = (pBuffPice->end + 1)%(BUFF_SIZE/BUFF_PICE_SIZE);
+		usleep(10000);
 	}
 	//可选择在这里循环判断长度是否为0,为0就回收本地内存给链表,SendBackMemory调用函数即可，重复了
 //	while(pBuffPice->length !=0)NULL;

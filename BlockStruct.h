@@ -18,9 +18,10 @@
 #include<stdint.h>
 #ifndef BLOCKSTRUCT_H_
 #define BLOCKSTRUCT_H_
-#define BLOCK_SIZE (64*1024*1024UL)
-#define BUFF_SIZE (8*1024*1024UL)//内存片大小8M
-#define BUFF_PICE_SIZE (1024*1024UL)//每次传输的数据大小1M
+#define MB_SIZE (1024UL)
+#define BLOCK_SIZE (MB_SIZE*64UL)
+#define BUFF_SIZE (MB_SIZE*8UL)//内存片大小8M
+#define BUFF_PICE_SIZE (MB_SIZE)//每次传输的数据大小1M
 #ifndef EREASURE_N
 #define EREASURE_N 9 // 编码参数 RS（n,k）
 #define EREASURE_K 3 //码参数 RS（n,k）
@@ -54,7 +55,7 @@ typedef struct taskBlock{
 		//块类型标识；
 		//为0表示数据块。为（1~2k-1）时，表示为校验块，且每个bit位都代表一个参与校验的块。
 		//条带有k个数据块。
-	uint32_t waitedBlock[EREASURE_N];
+	int32_t waitedBlock[EREASURE_N];
 	  	//等待的Block只能是数据块或者校验块，不能二者混杂在一起
 		//如果是校验块，存放顺序依次为P1‘，P2’，……，Pk‘但是无法标记为哪些块生成的校验块，由传输端确定是哪些校验
 	uint32_t destIPNum;//一般情况下均为1,除了最终编码节点的目标ip为多个
@@ -69,15 +70,15 @@ typedef struct transportBlock{
 	//块类型标识；
 	//为0表示数据块。为（1~2k-1）时，表示为校验块，且每个bit位都代表一个参与校验的块。
 	//条带有k个数据块。
-	uint32_t blockID;
+	int32_t blockID;
 	//块号；
 	//数据块号，编号为1~∝，
 	//当<块类型标识>显示该块为校验块时，块号信息仅代表所属条带，因为块已被编码
 	uint32_t chunkID;
 	//代表条带号
-	uint32_t parityID;
+	int32_t parityID;
 	//代表校验块的第几块，因为校验块只能是P1~Pk,所以其值为1~k
-	uint32_t offsetInsideBlock;
+	int32_t offsetInsideBlock;
 	//因为网络中传输的块不是一个个完整的块。所以会有其在数据块内偏移，
 	//例如64MB的大块被分割为1MB的小块，偏移量标识为0~63
 	uint64_t transportSize;

@@ -33,6 +33,7 @@ typedef struct RegistAndTaskFeedback{
 #pragma pack(pop)
 
 int32_t g_finished_task = 0;
+int32_t g_unfinished_task = 0;
 pthread_mutex_t g_finished_task_lock;
 int32_t main(int32_t argc,char** argv)
 {
@@ -214,17 +215,24 @@ struct sockaddr_in cliaddr;
 		    			return -1;
 		    		}
 		pthread_mutex_lock(&g_finished_task_lock);
-		g_finished_task = 0;
+		if(task_length>0)g_unfinished_task = g_unfinished_task+task_length;
 		pthread_mutex_unlock(&g_finished_task_lock);
 		ProcessTask(recvTaskBuff,recv);//将任务抛给任务处理模块
 		//如果是最后一次任务，即空任务，此时ProcessTask函数会将TaskRecvFinished设置为1
 		while(sendFeedback == false);//时间到了发送任务反馈给namenode
-		FeedbackDToN-> allocatedTask = task_length;
 		FeedbackDToN->availableBandwidth = 16;
 		FeedbackDToN->wholeBandwidth = 100;
+		
+		pthread_mutex_lock(&g_finished_task_lock);
+	//	FeedbackDToN-> allocatedTask = task_length;
+		FeedbackDToN-> allocatedTask = g_unfinished_task;
 		FeedbackDToN->finishedTask = g_finished_task;
+		g_finished_task = 0;
+		pthread_mutex_unlock(&g_finished_task_lock);
 		FeedbackDToN->finishedTime =20;
-		if(g_finished_task >= task_length)
+	//	if(g_finished_task >= task_length)
+		assert(g_unfinished_task>=0);
+		if(g_unfinished_task == 0)
 		{
 			FeedbackDToN->finishedOrNot =1;
 		}
@@ -246,20 +254,27 @@ struct sockaddr_in cliaddr;
 		pthread_mutex_unlock(&lockFeedback);
 
 	}
-		
+	/*	
 		pthread_mutex_lock(&g_finished_task_lock);
                 g_finished_task = 0;
                 pthread_mutex_unlock(&g_finished_task_lock);
+	*/
 		recv = 0;//最后一次一定是0,在前面的while（1）里面跳出的
                 ProcessTask(recvTaskBuff,recv);//将任务抛给任务处理模块
                 //如果是最后一次任务，即空任务，此时ProcessTask函数会将TaskRecvFinished设置为1
+		fprintf(stderr,"节点等待所有任务完成，最有一个feedback\n");
                 while(sendFeedback == false);//时间到了发送任务反馈给namenode
-                FeedbackDToN-> allocatedTask = task_length;
                 FeedbackDToN->availableBandwidth = 16;
                 FeedbackDToN->wholeBandwidth = 100;
+		while(g_unfinished_task!=0);
+		fprintf(stderr,"节点所有任务完成\n");
+		pthread_mutex_lock(&g_finished_task_lock);
+                FeedbackDToN-> allocatedTask = task_length;
                 FeedbackDToN->finishedTask = g_finished_task;
+		pthread_mutex_unlock(&g_finished_task_lock);
 		FeedbackDToN->finishedTime =20;
-                if(g_finished_task >= task_length)
+                //if(g_finished_task >= task_length)
+		if(g_unfinished_task == 0)
                 {
                         FeedbackDToN->finishedOrNot =1;
                 }
@@ -333,11 +348,12 @@ void * ProcessTime(void * taskTime)
 
 void ProcessTask(char *recvTaskBuff,int64_t recv)
 //pthread_task_num线程返回表示该条带的任务完成（其实是编码完成，但是也几乎等于完成了，因为每编码一个块就会立即发送）
+//之前直接使用recvTaskBuff,因为recvTaskBuff是Datanode接收任务的，所以下一次接收任务时就会被覆盖
 {
 	int32_t TaskNum = 0;
 	int32_t i = 0;
 	pthread_t * pthread_task_num = NULL;
-
+	char *local_recvTaskBuff = NULL;
 	int32_t rt = 0;
 	pTaskBlock pChunkTask = NULL;
 	assert(recv % sizeof(nTaskBlock) == 0);
@@ -348,18 +364,43 @@ void ProcessTask(char *recvTaskBuff,int64_t recv)
        if(DEW_DEBUG >0)fprintf(stderr,"本次接受的任务长度为0\n");
 	return;
 	}
-	pthread_task_num = (pthread_t *)malloc(TaskNum * sizeof(pthread_t));
-	assert(pthread_task_num != NULL);
+	assert(TaskNum>0);
+	local_recvTaskBuff = (char *)malloc(TaskNum*sizeof(nTaskBlock));
+	assert(local_recvTaskBuff != NULL);
+	memcpy(local_recvTaskBuff,recvTaskBuff,TaskNum*sizeof(nTaskBlock));
+	if(run_plan == PLANA)//PLANA的意思是采用并行的方式发送任务中的每一个数据块，并发太高性能会比较差
+	{
+		pthread_task_num = (pthread_t *)malloc(TaskNum * sizeof(pthread_t));
+		assert(pthread_task_num != NULL);
 
-	for(i = 0; i< TaskNum; i++)
-	{//此处应该是并行创建处理单个条带任务的线程
+		for(i = 0; i< TaskNum; i++)
+		{//此处应该是并行创建处理单个条带任务的线程
 
-		pChunkTask = (pTaskBlock)(recvTaskBuff + i*sizeof(nTaskBlock));
-		rt = pthread_create(pthread_task_num, NULL, &ProcessChunkTask, (void*)pChunkTask);
-		assert(0 == rt);
-		pthread_task_num ++;
+			pChunkTask = (pTaskBlock)(local_recvTaskBuff + i*sizeof(nTaskBlock));
+			rt = pthread_create(pthread_task_num, NULL, &ProcessChunkTask, (void*)pChunkTask);
+			assert(0 == rt);
+			pthread_task_num ++;
+		}
 	}
-	
+	else if(run_plan == PLANB)
+	{
+		
+pthread_task_num = (pthread_t *)malloc(TaskNum * sizeof(pthread_t));
+                assert(pthread_task_num != NULL);
+                           
+                for(i = 0; i< TaskNum; i++)
+                {//此处应该是并行创建处理单个条带任务的线程
+                           
+                        pChunkTask = (pTaskBlock)(local_recvTaskBuff + i*sizeof(nTaskBlock));
+                        rt = pthread_create(pthread_task_num, NULL, &ProcessChunkTask, (void*)pChunkTask);
+                        assert(0 == rt);
+                        pthread_task_num ++;
+                }    
+	}
+	else 
+	{
+		fprintf(stderr,"has no plan for the chunk\n");
+	}
        if(DEW_DEBUG >0)fprintf(stderr,"完成接受自NameNode的一次任务\n");
 
 }

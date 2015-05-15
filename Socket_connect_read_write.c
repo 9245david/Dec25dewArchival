@@ -61,13 +61,14 @@ int64_t DataTransportRead(int32_t sock_fd,char * buffer,int64_t length)
 	 struct sockaddr_in servaddr;
         socklen_t len;
 
-	assert(length >=0);
-	assert(buffer!=NULL);
-	if(length == 0)return 0;
 	len = sizeof(struct sockaddr_in);
         getpeername(sock_fd,(struct sockaddr*)&cliaddr,&len);
         getsockname(sock_fd,(struct sockaddr*)&servaddr,&len);
-	
+	if(buffer == NULL)fprintf(stderr,"buffer==NULL,sockfd =%d,buffer = %p,length =%ld,local%s,dest%s\n",\
+						sock_fd,buffer,length,inet_ntoa(servaddr.sin_addr),inet_ntoa(cliaddr.sin_addr));	
+	assert(length >=0);
+	assert(buffer!=NULL);
+	if(length == 0)return 0;
 	while(totalsize<length)
 	{
 		recvsize=read(sock_fd,buffer+totalsize,length-totalsize);
@@ -93,13 +94,15 @@ int64_t DataTransportWrite(int32_t sock_fd,char * buffer,int64_t length)
 	struct sockaddr_in cliaddr;
         struct sockaddr_in servaddr;
         socklen_t len;
-	assert(length >=0);
-	assert(buffer!=NULL);
 	if(length == 0)return 0;
 	len = sizeof(struct sockaddr_in);
         getpeername(sock_fd,(struct sockaddr*)&cliaddr,&len);
         getsockname(sock_fd,(struct sockaddr*)&servaddr,&len);
 
+	if(buffer == NULL)fprintf(stderr,"buffer==NULL,sockfd =%d,buffer = %p,length =%ld,local%s,dest%s\n",\
+						sock_fd,buffer,length,inet_ntoa(servaddr.sin_addr),inet_ntoa(cliaddr.sin_addr));	
+	assert(length >=0);
+	assert(buffer!=NULL);
         while(totalsize<length)
         {
             sendsize=write(sock_fd,buffer+totalsize,length-totalsize);

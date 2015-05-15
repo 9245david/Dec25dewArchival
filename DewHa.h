@@ -26,8 +26,10 @@
 #define EREASURE_N 9 // 编码参数 RS（n,k）
 #define EREASURE_K 3 //码参数 RS（n,k）
 #endif
-
-#define BLK_SIZE (64*1024*1024UL) //数据块大小
+#ifndef MB_SIZE
+#define MB_SIZE (1024UL)
+#endif
+#define BLK_SIZE (MB_SIZE*64UL) //数据块大小
 #define NODE_BLKNUM 10000 //单节点数据块个数
 
 #ifndef TASK_END

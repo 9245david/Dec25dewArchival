@@ -116,6 +116,7 @@ void *handle_request(void * arg)
 	int32_t node_num;
 	int32_t semid;
 	int32_t time = 0;
+	struct timeval recv_feedback_time = {0,0};
 	connfd = *((int32_t*)arg);
 	free(arg);
 	node_num = GetNodeIDFromConnfd(connfd);
@@ -164,6 +165,7 @@ void *handle_request(void * arg)
     	SendTaskToDatanode(connfd);//此处有一个DataTransportWrite
     	recv = DataTransportRead(connfd,recvbuff,sizeof(nFeedback));//首先接收数据长度参数
 
+	gettimeofday(&recv_feedback_time,NULL);
     	//接收各个节点的归档进度反馈
     	//此处接受数据的时间控制暂时有datanode控制，假设控制过程为，接收管理节点的starttime  之后有一个监控时间的线程
     	//当约定的时间点到达之后发送反馈信息，这样貌似
@@ -178,7 +180,7 @@ void *handle_request(void * arg)
     			return NULL;
     		}
 	if(DEW_DEBUG >=1)printf("while recv nFeedback from %d",GetNodeIDFromConnfd(connfd));
-    	WriteTaskFeedbackLog(connfd,recvbuff,sizeof(nFeedback));//将datanode反馈的信息写入日志中
+    	WriteTaskFeedbackLog(connfd,recvbuff,sizeof(nFeedback),GetNodeIDFromConnfd(connfd),recv_feedback_time);//将datanode反馈的信息写入日志中
     	ProcessDatanodeState(recvbuff, recv, connfd);//将反馈信息提交给归档管理器
 	
     }
@@ -188,6 +190,7 @@ void *handle_request(void * arg)
         SendTaskToDatanode(connfd);//此处有一个DataTransportWrite
         recv = DataTransportRead(connfd,recvbuff,sizeof(nFeedback));//首先接收数据长度参数
 
+	gettimeofday(&recv_feedback_time,NULL);
         //接收各个节点的归档进度反馈
         //此处接受数据的时间控制暂时有datanode控制，假设控制过程为，接收管理节点的starttime  之后有一个监控时间的线程
         //当约定的时间点到达之后发送反馈信息，这样貌似
@@ -202,7 +205,7 @@ void *handle_request(void * arg)
                         return NULL;
                 }
         if(DEW_DEBUG >=1)printf("recv nFeedback from %d",GetNodeIDFromConnfd(connfd));
-        WriteTaskFeedbackLog(connfd,recvbuff,sizeof(nFeedback));//将datanode反馈的信息写入日志中
+        WriteTaskFeedbackLog(connfd,recvbuff,sizeof(nFeedback),GetNodeIDFromConnfd(connfd),recv_feedback_time);//将datanode反馈的信息写入日志中
     	ProcessDatanodeState(recvbuff, recv, connfd);//将反馈信息提交给归档管理器
 
 
@@ -361,7 +364,7 @@ int32_t TaskSendFinished(int32_t connfd)
 	//return 0;
 
 	}
-void WriteTaskFeedbackLog(int32_t connfd,char *recvbuff,uint64_t length)
+void WriteTaskFeedbackLog(int32_t connfd,char *recvbuff,uint64_t length,int32_t node_id,struct timeval recv_feedback_time)
 {
 	pFeedback FeedbackDToN = (pFeedback)recvbuff;
 	//int logFd = open("TaskFeedbackLog.log",O_WRONLY|O_CREAT,0666);//使用O_CREAT时必须用参数mode = 0666
@@ -369,10 +372,10 @@ void WriteTaskFeedbackLog(int32_t connfd,char *recvbuff,uint64_t length)
 	
 	if(DEW_DEBUG>=1)printf("inside WriteTaskFeedbackLog \n");
 	pthread_mutex_lock(&logFileLock);
-	fprintf(logFile,"wholeBandwidth %lf,available%lf,%lf,%lf",FeedbackDToN->wholeBandwidth,FeedbackDToN->availableBandwidth,FeedbackDToN->wholeStorageSpace,FeedbackDToN->availableStorageSpace);
-	fprintf(logFile,"finishedornot%u,allocated%u,finished%u,finishtime%u\n",FeedbackDToN->finishedOrNot,FeedbackDToN->allocatedTask,FeedbackDToN->finishedTask,FeedbackDToN->finishedTime);
+	fprintf(logFile,"node_id %d,wholeBandwidth %.0lf,available%.0lf,wholeStorage%.0lf,availableStorage%.0lf",node_id,FeedbackDToN->wholeBandwidth,FeedbackDToN->availableBandwidth,FeedbackDToN->wholeStorageSpace,FeedbackDToN->availableStorageSpace);
+	fprintf(logFile,"finishedornot%u,allocated%d,finished%u,finishtime%u,feedback time%lld\n",FeedbackDToN->finishedOrNot,FeedbackDToN->allocatedTask,FeedbackDToN->finishedTask,FeedbackDToN->finishedTime,recv_feedback_time.tv_sec);
 	fflush(logFile);
-	printf("%u,%u,%u,%u\n",FeedbackDToN->finishedOrNot,FeedbackDToN->allocatedTask,FeedbackDToN->finishedTask,FeedbackDToN->finishedTime);
+	printf("%u,%d,%u,%u\n",FeedbackDToN->finishedOrNot,FeedbackDToN->allocatedTask,FeedbackDToN->finishedTask,FeedbackDToN->finishedTime);
 	pthread_mutex_unlock(&logFileLock);
 	/*
 	uint64_t wholeBandwidth;//B/s，总带宽
@@ -425,7 +428,7 @@ void *ProvideTask(void *arg)
 			for(i=0;i<nodeNum;i++)
 			{
 				g_pDatanodeTask[i].taskNum = 0;
-				g_weight[i] = g_nodeFeedback[i].availableBandwidth * TASK_TIME / (BLOCK_SIZE/1024/1024);
+				g_weight[i] = g_nodeFeedback[i].availableBandwidth * TASK_TIME / (BLOCK_SIZE/MB_SIZE);
 				g_pDatanodeTask[i].historyNotFinished = false;//默认正常任务完成情况
 				g_pDatanodeTask[i].singleStripTask = NULL;
 			}
@@ -438,7 +441,7 @@ void *ProvideTask(void *arg)
 				g_pDatanodeTask[i].historyNotFinished = false;//默认正常任务完成情况
 				if(g_nodeFeedback[i].allocatedTask == 0)//上一个回合并没有分配任务
 				{
-					g_weight[i] = g_nodeFeedback[i].availableBandwidth * TASK_TIME / (BLOCK_SIZE/1024/1024);
+					g_weight[i] = g_nodeFeedback[i].availableBandwidth * TASK_TIME / (BLOCK_SIZE/MB_SIZE);
 
 				}
 				else if(g_nodeFeedback[i].finishedOrNot == 1)//任务已经完成，依据完成时间的比例得到下次发送的任务个数上限
@@ -555,7 +558,7 @@ int ProvideTaskAlgorithm(int32_t * g_weight,pTaskHead g_pDatanodeTask)
 		task[i][j]=0;
 	}
 	strp_lay_head = get_strp_lay(g_TaskStartBlockNum);
-	if(DEW_DEBUG >=1)
+	if(DEW_DEBUG >=4)
 		{
 			printf("strp_lay g_TaskStartBlocNum %d\n",g_TaskStartBlockNum);
 			print_double_circular(strp_lay_head);
@@ -564,7 +567,7 @@ int ProvideTaskAlgorithm(int32_t * g_weight,pTaskHead g_pDatanodeTask)
 	weight_strp_lay = get_weight_strp_lay(strp_lay_head,g_weight);
 	
 	delete_tail_node(weight_strp_lay);
-	if(DEW_DEBUG >=1)
+	if(DEW_DEBUG >=4)
 		{
 			printf("task lay\n");
 			print_double_circular(weight_strp_lay);
@@ -572,7 +575,7 @@ int ProvideTaskAlgorithm(int32_t * g_weight,pTaskHead g_pDatanodeTask)
 	
 	while(weight_strp_lay !=NULL)//一次循环对应一个条带的任务分配
 	{
-		  if(DEW_DEBUG >=1)
+		  if(DEW_DEBUG >=4)
                 {
                         printf("task lay1\n");
                         print_double_circular(weight_strp_lay);
@@ -648,8 +651,9 @@ int ProvideTaskAlgorithm(int32_t * g_weight,pTaskHead g_pDatanodeTask)
 					p_temp_task_block->waitedBlockType = 0;
 					//p_temp_task_block->waitedBlock[j++] = 0;//不等待数据，无需接收数据
 					for(j=0;j<EREASURE_N;j++)p_temp_task_block->waitedBlock[j] = -1;
-					p_temp_task_block->destIPNum =1;
-					memcpy(p_temp_task_block->destIP[0],g_nodeIP[node_ID-1],IP_LENGTH);
+					p_temp_task_block->destIPNum =block_num;
+					for(j=0;j<block_num;j++)
+					memcpy(p_temp_task_block->destIP[j],g_nodeIP[node_ID-1],IP_LENGTH);
 
 				}
 			}
@@ -660,7 +664,7 @@ int ProvideTaskAlgorithm(int32_t * g_weight,pTaskHead g_pDatanodeTask)
 
 		g_TaskStartBlockNum = g_TaskStartBlockNum + EREASURE_N - EREASURE_K;
 //*************************
-		if(DEW_DEBUG>=1)
+		if(DEW_DEBUG>=4)
         	{
                  	 for(i=0;i< DATANODE_NUMBER;i++)
                 	{
@@ -688,11 +692,26 @@ int ProvideTaskAlgorithm(int32_t * g_weight,pTaskHead g_pDatanodeTask)
         */
 			sem_v(semid,i);  
 	      		}
+			if(DEW_DEBUG>=1)
+       			 {
+                  		for(i=0;i< DATANODE_NUMBER;i++)
+                		{
+                       			 j = g_pDatanodeTask[i].taskNum;
+                      			  printf("node %d,taskNum = %d\n",i,j);
+                        		p_temp_task_block = g_pDatanodeTask[i].singleStripTask;
+                        		for(k=0;k<j;k++)
+                       			 {
+                               			 print_task_block(p_temp_task_block);
+                              			  p_temp_task_block++;
+                                	}
+                 		}
 
+               			 printf("outside ProvidTaskAlgorithm \n");
+        		}	
 			return 2;
 		}
 		strp_lay_head = get_strp_lay(g_TaskStartBlockNum);
-		if(DEW_DEBUG >=1)
+		if(DEW_DEBUG >=4)
                 {
                         printf("strp_lay g_TaskStartBlocNum %d\n",g_TaskStartBlockNum);
                         print_double_circular(strp_lay_head);
@@ -700,7 +719,7 @@ int ProvideTaskAlgorithm(int32_t * g_weight,pTaskHead g_pDatanodeTask)
 
 		weight_strp_lay = get_weight_strp_lay(strp_lay_head,g_weight);
 		 delete_tail_node(weight_strp_lay);
-		 if(DEW_DEBUG >=1)
+		 if(DEW_DEBUG >=4)
                 {
                         printf("task lay2\n");
                         print_double_circular(weight_strp_lay);
