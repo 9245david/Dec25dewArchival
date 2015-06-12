@@ -15,11 +15,11 @@
 #include <assert.h>
 #include "dew_list.h"
 #include "stdbool.h"
-#define RACK_NODE 6 //机架节点数,同时也是冗余码的K
+#define RACK_NODE 3 //机架节点数,同时也是冗余码的K
 #define RACK_NUM 3 //机架数,同时也是副本数
 
 #ifndef DATANODE_NUMBER
-#define DATANODE_NUMBER 18
+#define DATANODE_NUMBER 9
 #endif
 
 #ifndef EREASURE_N
@@ -27,13 +27,13 @@
 #define EREASURE_K 3 //码参数 RS（n,k）
 #endif
 #ifndef MB_SIZE
-#define MB_SIZE (1024UL)
+#define MB_SIZE (1024*1024UL)
 #endif
 #define BLK_SIZE (MB_SIZE*64UL) //数据块大小
 #define NODE_BLKNUM 10000 //单节点数据块个数
 
 #ifndef TASK_END
-#define TASK_END 156
+#define TASK_END 360
 #endif
 //#define DEW_DEBUG 1
 #define DEW_DEBUG 2

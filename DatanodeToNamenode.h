@@ -7,6 +7,11 @@
 
 #ifndef DATANODETONAMENODE_H_
 #define DATANODETONAMENODE_H_
+#define AVAILABLE 64000
+#define WHOLE 64000
+//availableBandwidth 64
+//#define wholeBandwidth 100
+
 void * DatanodeToNamenode(void * arg);
 int32_t DatanodeRegistOnNamenode(void);
 int32_t DatanodeControlwithNamenode(int32_t sock_DtoN);

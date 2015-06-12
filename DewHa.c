@@ -192,7 +192,7 @@ int32_t check_rack_map(int32_t rackNum,int32_t blkID)//依据机架号(1~3)和�
     char * p_rack_bit = NULL;
 	char result=0;
     p_rack_bit = (Rack_bit_map+single_node_mapLength*(rackNum-1)+(blkID-1)/4);
-	result = ((*p_rack_bit)&(0xE0>>(blkID-1)%4*2))>>((6-blkID-1)%4*2);
+	result = ((*p_rack_bit)&(0xC0>>(blkID-1)%4*2))>>(6-(blkID-1)%4*2);
 	return (int32_t)result;
 }
 
@@ -215,7 +215,7 @@ int32_t Heter_arch_lay()//此处RACK_NODE 实际应为K值，正好都为6，代
 		 init_list_head(&(g_PclusterAchival[i]));
 	}
 	
-	strp_num = blk_id /6;
+	strp_num = blk_id /(EREASURE_N-EREASURE_K);
 	strp_lay_head  = (list_head *)malloc(sizeof(list_head));
 	if(NULL==strp_lay_head){printf("error\n");return -1;}
 	//init_list_head(strp_lay_head);
@@ -226,9 +226,9 @@ int32_t Heter_arch_lay()//此处RACK_NODE 实际应为K值，正好都为6，代
 			for(node_id=1;node_id<=RACK_NODE*RACK_NUM;node_id++)//遍历每个节点，判断每个块在不在
 			{
 				tempB=0;
-				for(strp_innerID=0;strp_innerID<RACK_NODE;strp_innerID++)//条带上的每个块
+				for(strp_innerID=0;strp_innerID<(EREASURE_N-EREASURE_K);strp_innerID++)//条带上的每个块
 				{
-					local_blkID = (strp_id-1)*RACK_NODE+strp_innerID+1;//此处RACK_NODE 实际应为K值，正好为6
+					local_blkID = (strp_id-1)*(EREASURE_N-EREASURE_K)+strp_innerID+1;//此处RACK_NODE 实际应为K值，正好为6
 					if(check_node_map(node_id,local_blkID)>0)
 					{
 						
@@ -300,7 +300,7 @@ list_head *get_strp_lay(int32_t task_start_block_num)//依据起始块号得到�
 	for(node_id=1;node_id<=RACK_NODE*RACK_NUM;node_id++)//遍历每个节点，判断每个块在不在
 		{
 			tempB=0;
-			for(strp_innerID=0;strp_innerID<RACK_NODE;strp_innerID++)//条带上的每个块
+			for(strp_innerID=0;strp_innerID<(EREASURE_N-EREASURE_K);strp_innerID++)//条带上的每个块
 				{
 					local_blkID = task_start_block_num+strp_innerID+1;//此处RACK_NODE 实际应为K值，正好为6
 					if(check_node_map(node_id,local_blkID)>0)
@@ -427,7 +427,7 @@ list_head *get_weight_strp_lay(list_head* strp_lay_head,int32_t * weight)
 		}
 		if(flag == 1)break;
 	}
-	if(DEW_DEBUG ==1)print_weight_strp_lay(p_node_weight_head);
+	if(DEW_DEBUG >=1)print_weight_strp_lay(p_node_weight_head);
 	//权重值和分布得到任务
 	task_strp_lay_head = (list_head *)malloc(sizeof(list_head));
 	init_list_head(task_strp_lay_head);//初始化任务链表头
@@ -509,9 +509,9 @@ list_head *get_weight_strp_lay(list_head* strp_lay_head,int32_t * weight)
 	//	assert(p_task_sort3 == task_strp_lay_head);
 		if(flag == 1)break;//没有交换产生
 	}
-	if(DEW_DEBUG ==1)
+	if(DEW_DEBUG >=1)
 		{
-			printf("task lay\n");
+			printf("inside task lay\n");
 			print_double_circular(task_strp_lay_head);
 		}
 
@@ -702,18 +702,18 @@ int32_t Print_cluster_lay()//打印集群节点数据块分布
 	int32_t cluster_line =0;
 	cluster_line = cluster_lay[0][0];
 	printf("第一行为每个节点中数据的块数\n");
-	for(i=1;i<18;i++)
+	for(i=1;i<RACK_NODE*RACK_NUM;i++)
 	{
 		if(cluster_line<cluster_lay[0][i])cluster_line=cluster_lay[0][i];
 	}
-	for(j=1;j<=18;j++)
+	for(j=1;j<=RACK_NODE*RACK_NUM;j++)
 	{
 		printf("N%-3d ",j);
 	}
 	printf("\n");
 	for(j=0;j<=cluster_line;j++)
 	{
-		for(i=0;i<18;i++)
+		for(i=0;i<RACK_NODE*RACK_NUM;i++)
 		{
 			printf("%-4d ",cluster_lay[j][i]);
 		}

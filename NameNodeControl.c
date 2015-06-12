@@ -21,8 +21,8 @@
 unsigned char dataNodeIP[18][IP_LENGTH] = {
                 "192.168.0.34","192.168.0.35","192.168.0.44",
                 "192.168.0.45","192.168.0.46","192.168.0.47",
-                "192.168.0.50","192.168.0.52","192.168.0.53",
-                "192.168.0.54","192.168.0.55","192.168.0.58",
+                "192.168.0.50","192.168.0.52","192.168.0.54",
+                "192.168.0.53","192.168.0.55","192.168.0.58",
                 "192.168.0.59","192.168.0.63","192.168.0.64",
                 "192.168.0.65","192.168.0.67","192.168.0.68"
 };
@@ -155,8 +155,7 @@ void *handle_request(void * arg)
 	if(DEW_DEBUG > 0)printf("send starttime to %s ,%ds \n",inet_ntoa(cliaddr.sin_addr),time);
 	//return NULL; 
 //	int semid;
-    while(TaskSendFinished(connfd) != 1)//所有的归档任务没有派送完
-    {
+    do{
     	 // 发送任务给各个节点
 	printf("while 等待信号量%s,",inet_ntoa(cliaddr.sin_addr));
     	sem_p(semid,node_num);
@@ -183,7 +182,7 @@ void *handle_request(void * arg)
     	WriteTaskFeedbackLog(connfd,recvbuff,sizeof(nFeedback),GetNodeIDFromConnfd(connfd),recv_feedback_time);//将datanode反馈的信息写入日志中
     	ProcessDatanodeState(recvbuff, recv, connfd);//将反馈信息提交给归档管理器
 	
-    }
+    }while(TaskSendFinished(connfd) != 1);//所有的归档任务没有派送完
  printf("等待信号量%s,",inet_ntoa(cliaddr.sin_addr));
         sem_p(semid,node_num);
         printf("获得信号两\n");
@@ -251,7 +250,7 @@ int32_t handle_connect(int32_t listen_sock)//返回0正常，返回其他值，�
 		gettimeofday(&starttime,NULL);
 		ALL_DATANODE_CONNECTED = true;//所有连接已经建立
 //		close(listen_sock);
-
+	fprintf(logFile,"start time is %lld\n",starttime.tv_sec);
 	if(DEW_DEBUG==1)printf("all the node have regist, namenode set the starttime\n");
 		return 0;
 	}
@@ -266,11 +265,11 @@ void NodeRegist(int32_t nodeConnfd,char *nodeIP,int32_t nodeNum)
 	int i ;
 	if(DEW_DEBUG>0)
 	{
-		for( i =0; i< 18;i++)
+		for( i =0; i< RACK_NUM*RACK_NODE;i++)
 		{
 			if(strcmp(nodeIP,dataNodeIP[i])==0)break;
 		}
-		assert(i<18);
+		assert(i<RACK_NODE*RACK_NUM);
 		nodeNum = i+1;
 	}
 	g_nodeConnfd[nodeNum - 1] = nodeConnfd;
@@ -558,7 +557,7 @@ int ProvideTaskAlgorithm(int32_t * g_weight,pTaskHead g_pDatanodeTask)
 		task[i][j]=0;
 	}
 	strp_lay_head = get_strp_lay(g_TaskStartBlockNum);
-	if(DEW_DEBUG >=4)
+	if(DEW_DEBUG >=1)
 		{
 			printf("strp_lay g_TaskStartBlocNum %d\n",g_TaskStartBlockNum);
 			print_double_circular(strp_lay_head);
@@ -567,7 +566,7 @@ int ProvideTaskAlgorithm(int32_t * g_weight,pTaskHead g_pDatanodeTask)
 	weight_strp_lay = get_weight_strp_lay(strp_lay_head,g_weight);
 	
 	delete_tail_node(weight_strp_lay);
-	if(DEW_DEBUG >=4)
+	if(DEW_DEBUG >=1)
 		{
 			printf("task lay\n");
 			print_double_circular(weight_strp_lay);

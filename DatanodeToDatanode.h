@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
+#include <semaphore.h>
 #include "BlockStruct.h"
 #include "Socket_connect_read_write.h"
 #include "dew_list.h"
@@ -21,12 +22,15 @@
 #endif
 typedef struct buffDiscript{
 	char * buff;
-	int32_t start;
-	int32_t end;
-	int32_t length;//已经存的pice数目
+	volatile int32_t start;
+	volatile int32_t end;
+	volatile int32_t length;//已经存的pice数目
 	int64_t buffSize;//8MB
 	int64_t pice;//每一片buff的大小
-	pthread_mutex_t buffLock;
+	volatile sem_t sem_mutex; // 生产者和消费者的互斥锁
+	volatile sem_t empty_sem_mutex; // 空的时候，对消费者不可进
+	volatile sem_t full_sem_mutex; // 满的时候，对生产者不可进
+	volatile pthread_mutex_t buffLock;
 }*pSingleBuff,nSingleBuff;
 
 

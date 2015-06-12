@@ -137,8 +137,8 @@ struct sockaddr_in cliaddr;
 	assert(sock_DtoN > 0);
 	FeedbackDToN = (pFeedback)malloc(sizeof(nFeedback));
 	FeedbackDToN->allocatedTask = 0;
-	FeedbackDToN->availableBandwidth = 16;
-	FeedbackDToN->wholeBandwidth = 100;
+	FeedbackDToN->availableBandwidth = AVAILABLE;
+	FeedbackDToN->wholeBandwidth = WHOLE;
 	FeedbackDToN->finishedOrNot =1;
 	FeedbackDToN->finishedTime =20;
 
@@ -220,8 +220,8 @@ struct sockaddr_in cliaddr;
 		ProcessTask(recvTaskBuff,recv);//将任务抛给任务处理模块
 		//如果是最后一次任务，即空任务，此时ProcessTask函数会将TaskRecvFinished设置为1
 		while(sendFeedback == false);//时间到了发送任务反馈给namenode
-		FeedbackDToN->availableBandwidth = 16;
-		FeedbackDToN->wholeBandwidth = 100;
+		FeedbackDToN->availableBandwidth = AVAILABLE;
+		FeedbackDToN->wholeBandwidth = WHOLE;
 		
 		pthread_mutex_lock(&g_finished_task_lock);
 	//	FeedbackDToN-> allocatedTask = task_length;
@@ -264,8 +264,8 @@ struct sockaddr_in cliaddr;
                 //如果是最后一次任务，即空任务，此时ProcessTask函数会将TaskRecvFinished设置为1
 		fprintf(stderr,"节点等待所有任务完成，最有一个feedback\n");
                 while(sendFeedback == false);//时间到了发送任务反馈给namenode
-                FeedbackDToN->availableBandwidth = 16;
-                FeedbackDToN->wholeBandwidth = 100;
+                FeedbackDToN->availableBandwidth = AVAILABLE;
+                FeedbackDToN->wholeBandwidth = WHOLE;
 		while(g_unfinished_task!=0);
 		fprintf(stderr,"节点所有任务完成\n");
 		pthread_mutex_lock(&g_finished_task_lock);
