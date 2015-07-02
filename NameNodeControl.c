@@ -28,7 +28,8 @@
                 "192.168.0.65","192.168.0.67","192.168.0.68"
 };
 */
-unsigned char dataNodeIP[18][IP_LENGTH] = {
+/*
+	unsigned char dataNodeIP[18][IP_LENGTH] = {
                 "192.168.0.45","192.168.0.46","192.168.0.50",
                 "192.168.0.52","192.168.0.44","192.168.0.55",
                 "192.168.0.59","192.168.0.63","192.168.0.64",
@@ -36,6 +37,8 @@ unsigned char dataNodeIP[18][IP_LENGTH] = {
                 "192.168.0.47","192.168.0.63","192.168.0.64",
                 "192.168.0.65","192.168.0.67","192.168.0.68"
 };
+*/
+char *dataNodeIP[IP_LENGTH];
 
 FILE* logFile = NULL;//打开一个已经存在的文件
 pthread_mutex_t logFileLock;
@@ -50,6 +53,7 @@ int32_t main(int32_t argc,char**argv)
 
 	int32_t semid;
 	struct sigaction myAction;
+	FILE * ip_conf = NULL;
 //system("ifconfig|grep \"inet addr:\"|grep -v \"127.0.0.1\"|cut -d: -f2|awk '{print $1}'");
 freopen("out.log","w",stdout);
 //system("ifconfig");
@@ -64,6 +68,33 @@ sigaction(SIGILL, &myAction, NULL);
 sigaction(SIGBUS, &myAction, NULL);
 sigaction(SIGABRT, &myAction, NULL);
 sigaction(SIGSYS, &myAction, NULL);
+	
+	//dataNodeIP = (char**)calloc(0,DATANODE_NUMBER*sizeof(char*));
+	//assert(dataNodeIP != NULL);
+	ip_conf = fopen("conf/IP.conf","r");
+	if(ip_conf != NULL)
+	{
+		for(i=0;i<DATANODE_NUMBER;i++)
+		{
+			dataNodeIP[i]=NULL;
+			dataNodeIP[i] = (char*)malloc(IP_LENGTH*sizeof(char));
+			assert(dataNodeIP[i]!=NULL);
+			if(1!=fscanf(ip_conf,"%[^\n]",dataNodeIP[i])){printf("read conf/IP error\n");return;}
+			dataNodeIP[i][12]='\0';
+			fgetc(ip_conf);//读取换行符
+		}
+	}
+	else
+	 {
+		printf("open conf/IP.conf error\n");
+		return;
+	}
+	fclose(ip_conf);
+	for(i=0;i<DATANODE_NUMBER;i++)
+	{
+		printf("ip is %s\n",dataNodeIP[i]);
+	}
+	fflush(stdout);
 	 key_task = ftok(".", 1);
 	semid = sem_create(key_task,DATANODE_NUMBER);
 	sem_setall(semid,sem_init_array);

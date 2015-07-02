@@ -124,6 +124,8 @@ int32_t DatanodeControlwithNamenode(int32_t sock_DtoN)
 	int64_t task_length = 0;
 	int32_t task_num = 0;
 	int32_t recv_time = 0;
+	struct timeval once_task_finish_time;
+        int64_t once_finish = 0;
 	char recvTaskBuff[DATA_NAME_MAXLENGTH];
 	int rt = 0;
 	pthread_t datanodeTime;
@@ -268,6 +270,7 @@ struct sockaddr_in cliaddr;
                 ProcessTask(recvTaskBuff,recv);//将任务抛给任务处理模块
                 //如果是最后一次任务，即空任务，此时ProcessTask函数会将TaskRecvFinished设置为1
 		fprintf(stderr,"节点等待所有任务完成，最后一个feedback\n");
+		fprintf(stderr,"等待时间到,IP = %s\n",localIPaddress);
                 while(sendFeedback == false);//时间到了发送任务反馈给namenode
                 FeedbackDToN->availableBandwidth = AVAILABLE;
                 FeedbackDToN->wholeBandwidth = WHOLE;

@@ -108,7 +108,7 @@ void * ProcessChunkTask(void* argv)
 		assert(pLocalGroup !=NULL);
 		assert(thread_local_num!=NULL);
 		}
-		if(localNum==2)fprintf(stderr,"chunk before AskForMemory(),localNum%d\n",localNum);
+		if(localNum==1)fprintf(stderr,"chunk before AskForMemory(),localNum%d\n",localNum);
 		for(i=0;i<localNum;i++)
 		{
 			*(pLocalBuff+i) = AskForMemory();
@@ -118,7 +118,7 @@ void * ProcessChunkTask(void* argv)
 			pthread_create(thread_local_num+i,NULL,&ReadLocalData,(void*)(pLocalGroup+i));
 
 		}
-	if(localNum ==2)fprintf(stderr,"chunk after AskForMemory()\n");
+	if(localNum ==1)fprintf(stderr,"chunk after AskForMemory()\n");
 /*	for(i=0;i<pChunkTask -> destIPNum;i++)
 	{
 
@@ -460,7 +460,7 @@ pSingleBuff AskForMemory()//向内存模块申请内存，需要加锁因为不�
 	char * tmpBuff = NULL;
 	pSingleBuff tmpSingleBuff =NULL;
 	pthread_mutex_lock(&g_memoryLock);
-	if(DEW_DEBUG>0)fprintf(stderr,"insdie askformemmory\n");
+	if(DEW_DEBUG==1)fprintf(stderr,"insdie askformemmory\n");
 	if(g_pFreeMemoryList == NULL)//如果为空,直接申请二十片内存
 	{
 		g_pFreeMemoryList = (pMemory)malloc(sizeof(nMemory));
