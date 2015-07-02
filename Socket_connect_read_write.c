@@ -13,6 +13,8 @@
 int32_t ClientConnectToServer(PNamenodeID arg)
 {
 int32_t sock_fd;
+int32_t i = 0;
+int32_t t[5] = {1,2,4,8,16};
 struct sockaddr_in srvaddr;
 //struct sockaddr_in cliaddr;
 if((sock_fd=socket(AF_INET,SOCK_STREAM,0))==-1)
@@ -41,11 +43,17 @@ if(connect(sock_fd,(struct sockaddr*)&srvaddr,sizeof(struct sockaddr))==-1)
 */
 while(connect(sock_fd,(struct sockaddr*)&srvaddr,sizeof(struct sockaddr))==-1)
 {
-	if(errno == EINTR)continue;
+	if((errno == EINTR)&&(i<=5))
+	{	
+		sleep(t[i]);
+		i++;
+		continue;
+	}
 	else
 	{	
-		fprintf(stderr,"error dest addr %s\n",arg->Namenode_ADDR);
+		fprintf(stderr,"connect error dest addr %s\n",arg->Namenode_ADDR);
 		perror("connect error");
+		sleep(30);
 		exit(-1);
 	}
 }
@@ -79,6 +87,7 @@ int64_t DataTransportRead(int32_t sock_fd,char * buffer,int64_t length)
 					perror("read error dew\n");
 					fprintf(stderr,"sockfd =%d,buffer = %p,length =%ld,local%s,dest%s\n",\
 						sock_fd,buffer,length,inet_ntoa(servaddr.sin_addr),inet_ntoa(cliaddr.sin_addr));	
+					fprintf(stderr,"dest %s\n",inet_ntoa(cliaddr.sin_addr));	
 					return -1;
 				}
 		}else if (recvsize == 0)continue;
@@ -99,8 +108,12 @@ int64_t DataTransportWrite(int32_t sock_fd,char * buffer,int64_t length)
         getpeername(sock_fd,(struct sockaddr*)&cliaddr,&len);
         getsockname(sock_fd,(struct sockaddr*)&servaddr,&len);
 
-	if(buffer == NULL)fprintf(stderr,"buffer==NULL,sockfd =%d,buffer = %p,length =%ld,local%s,dest%s\n",\
-						sock_fd,buffer,length,inet_ntoa(servaddr.sin_addr),inet_ntoa(cliaddr.sin_addr));	
+	if(buffer == NULL)
+	{
+		fprintf(stderr,"buffer==NULL,sockfd =%d,buffer = %p,length =%ld,local%s\n",\
+						sock_fd,buffer,length,inet_ntoa(servaddr.sin_addr));
+		fprintf(stderr,"dest %s\n",inet_ntoa(cliaddr.sin_addr));	
+	}
 	assert(length >=0);
 	assert(buffer!=NULL);
         while(totalsize<length)
@@ -114,6 +127,7 @@ int64_t DataTransportWrite(int32_t sock_fd,char * buffer,int64_t length)
 
 			fprintf(stderr,"sockfd =%d,buffer = %p,length =%ld,local%s,dest%s\n",\
 						sock_fd,buffer,length,inet_ntoa(servaddr.sin_addr),inet_ntoa(cliaddr.sin_addr));	
+			fprintf(stderr,"dest %s\n",inet_ntoa(cliaddr.sin_addr));	
                 	perror("write error dew\n");
                 	return -1;
                 }

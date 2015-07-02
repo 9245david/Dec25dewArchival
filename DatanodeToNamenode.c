@@ -16,6 +16,7 @@ bool sendFeedback = false; //全局变量
 pthread_mutex_t lockFeedback;
 struct timeval taskStarttime;
 int32_t g_recv_end = 0;//0 未结束，1结束
+int32_t ALL_TASK_FINISHED = 0;
 #pragma pack(push)
 #pragma pack(1)
 typedef struct RegistAndTaskFeedback{
@@ -49,6 +50,7 @@ sigaction(SIGILL, &myAction, NULL);
 sigaction(SIGBUS, &myAction, NULL);
 sigaction(SIGABRT, &myAction, NULL);
 sigaction(SIGSYS, &myAction, NULL);
+sigaction(SIGPIPE, &myAction, NULL);//for tcp close ,and write error
 	pthread_mutex_init(&g_finished_task_lock,NULL);
 	PnamenodeID = (PNamenodeID)malloc(sizeof(NamenodeID));
 	assert(PnamenodeID != NULL);
@@ -219,7 +221,9 @@ struct sockaddr_in cliaddr;
 		pthread_mutex_unlock(&g_finished_task_lock);
 		ProcessTask(recvTaskBuff,recv);//将任务抛给任务处理模块
 		//如果是最后一次任务，即空任务，此时ProcessTask函数会将TaskRecvFinished设置为1
+		fprintf(stderr,"等待时间到,IP = %s\n",localIPaddress);
 		while(sendFeedback == false);//时间到了发送任务反馈给namenode
+		fprintf(stderr,"时间到，准备发送反馈,IP = %s\n",localIPaddress);
 		FeedbackDToN->availableBandwidth = AVAILABLE;
 		FeedbackDToN->wholeBandwidth = WHOLE;
 		
@@ -229,6 +233,7 @@ struct sockaddr_in cliaddr;
 		FeedbackDToN->finishedTask = g_finished_task;
 		g_finished_task = 0;
 		pthread_mutex_unlock(&g_finished_task_lock);
+		fprintf(stderr,"获得锁，发送反馈,IP = %s\n",localIPaddress);
 		FeedbackDToN->finishedTime =20;
 	//	if(g_finished_task >= task_length)
 		assert(g_unfinished_task>=0);
@@ -262,7 +267,7 @@ struct sockaddr_in cliaddr;
 		recv = 0;//最后一次一定是0,在前面的while（1）里面跳出的
                 ProcessTask(recvTaskBuff,recv);//将任务抛给任务处理模块
                 //如果是最后一次任务，即空任务，此时ProcessTask函数会将TaskRecvFinished设置为1
-		fprintf(stderr,"节点等待所有任务完成，最有一个feedback\n");
+		fprintf(stderr,"节点等待所有任务完成，最后一个feedback\n");
                 while(sendFeedback == false);//时间到了发送任务反馈给namenode
                 FeedbackDToN->availableBandwidth = AVAILABLE;
                 FeedbackDToN->wholeBandwidth = WHOLE;
@@ -294,6 +299,7 @@ struct sockaddr_in cliaddr;
                 pthread_mutex_unlock(&lockFeedback);
 
        if(DEW_DEBUG >0)fprintf(stderr,"to namenode over\n");
+	ALL_TASK_FINISHED = 1;
 	return 2;
 	}
 

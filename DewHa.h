@@ -31,10 +31,13 @@
 #endif
 #define BLK_SIZE (MB_SIZE*64UL) //数据块大小
 #define NODE_BLKNUM 10000 //单节点数据块个数
-
+/*改为用配置文件得到TASK_END,不然每次修改都要重新编译源代码*/
+/*
 #ifndef TASK_END
 #define TASK_END 360
 #endif
+*/
+int32_t TASK_END;
 //#define DEW_DEBUG 1
 #define DEW_DEBUG 2
 typedef struct block_lay{

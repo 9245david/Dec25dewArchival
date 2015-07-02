@@ -231,7 +231,7 @@ void * ProcessChunkTask(void* argv)
 
 		for(i=0; i<EREASURE_K; i++)//回收客户端
 		{
-			if(DEW_DEBUG>0)fprintf(stderr,"等待回收内存\n");
+			if(DEW_DEBUG==1)fprintf(stderr,"等待回收内存\n");
 			while(connfdClient[i]->pBuffPice->length!=0)sleep(1);
 			SendBackMemory(connfdClient[i]->pBuffPice);
 		}
@@ -270,7 +270,7 @@ void * ProcessChunkTask(void* argv)
 
                 for(i=0;i<localNum;i++)//回收本地
                 {
-                        if(DEW_DEBUG >0)fprintf(stderr,"等待回收内存\n");
+                        if(DEW_DEBUG ==1)fprintf(stderr,"等待回收内存\n");
                         //while(pLocalBuff[i]->length!=0)NULL;
                         SendBackMemory(pLocalBuff[i]);
                 }
@@ -289,7 +289,7 @@ void * ProcessChunkTask(void* argv)
 	g_finished_task++;
 	g_unfinished_task--;
 	pthread_mutex_unlock(&g_finished_task_lock);
-        if(DEW_DEBUG >0)fprintf(stderr,"pchunktask finished\n");
+        if(DEW_DEBUG >5)fprintf(stderr,"pchunktask finished\n");
 	
 	return (void*)NULL;
 

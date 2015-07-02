@@ -18,12 +18,22 @@
 #include "semtool.h"
 #include "err_backtrace.h"
 //34 35 44 45 46 47 50 52 53 54 55 58 59 63 64 65 67 68
-unsigned char dataNodeIP[18][IP_LENGTH] = {
+/*
+   unsigned char dataNodeIP[18][IP_LENGTH] = {
                 "192.168.0.34","192.168.0.35","192.168.0.44",
-                "192.168.0.45","192.168.0.46","192.168.0.47",
-                "192.168.0.50","192.168.0.52","192.168.0.54",
-                "192.168.0.53","192.168.0.55","192.168.0.58",
+                "192.168.0.45","192.168.0.46","192.168.0.50",
+                "192.168.0.52","192.168.0.55","192.168.0.59",
+                "192.168.0.53","192.168.0.54","192.168.0.58",
+                "192.168.0.47","192.168.0.63","192.168.0.64",
+                "192.168.0.65","192.168.0.67","192.168.0.68"
+};
+*/
+unsigned char dataNodeIP[18][IP_LENGTH] = {
+                "192.168.0.45","192.168.0.46","192.168.0.50",
+                "192.168.0.52","192.168.0.44","192.168.0.55",
                 "192.168.0.59","192.168.0.63","192.168.0.64",
+                "192.168.0.53","192.168.0.54","192.168.0.58",
+                "192.168.0.47","192.168.0.63","192.168.0.64",
                 "192.168.0.65","192.168.0.67","192.168.0.68"
 };
 
@@ -223,7 +233,20 @@ int32_t handle_connect(int32_t listen_sock)//返回0正常，返回其他值，�
 		int32_t rt;
 		len = sizeof(cliaddr);
 		int32_t nodenum = DATANODE_NUMBER;
-		logFile = fopen("TaskFeedbackLog.log","w");
+		int32_t block_name = TASK_END;
+		char FeedbackLog[50] = "TaskFeedbackLog.log";
+		char log_tail[10];
+		sprintf(log_tail,"%d",block_name);	
+		for(i=0;i<10;i++)
+		{
+			if(log_tail[i]!='\0')
+				FeedbackLog[strlen("TaskFeedbackLog.log")+i] = log_tail[i];
+			else break;
+		}
+		assert(i<10);	
+		FeedbackLog[strlen("TaskFeedbackLog.log")+i] = '\0';
+		//logFile = fopen("TaskFeedbackLog.log","a");
+		logFile = fopen(FeedbackLog,"a");
 		assert(logFile!=NULL);
 		pthread_mutex_init(&logFileLock,NULL);
 		pthread_node_num = (pthread_t*)malloc(nodenum*sizeof(pthread_t));

@@ -45,6 +45,10 @@ int32_t init_cluster()
 	char * p_rack_bit = NULL;
 //	printf("input the block num (<%d): ",NODE_BLKNUM*RACK_NODE*RACK_NUM/3);
 //	scanf("%d",&blk_id);
+	FILE * task_conf = NULL;
+	task_conf = fopen("./conf/task.conf","r");
+	assert(task_conf !=NULL);
+	fscanf(task_conf,"TASK_END = %d\n",&TASK_END);	
 	blk_id =TASK_END;
 	if(blk_id%8==0)
 	{
