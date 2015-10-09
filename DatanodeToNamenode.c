@@ -394,7 +394,7 @@ void ProcessTask(char *recvTaskBuff,int64_t recv)
 	else if(run_plan == PLANB)
 	{
 		
-pthread_task_num = (pthread_t *)malloc(TaskNum * sizeof(pthread_t));
+		pthread_task_num = (pthread_t *)malloc(TaskNum * sizeof(pthread_t));
                 assert(pthread_task_num != NULL);
                            
                 for(i = 0; i< TaskNum; i++)

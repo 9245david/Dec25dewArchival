@@ -19,8 +19,8 @@
 #ifndef BLOCKSTRUCT_H_
 #define BLOCKSTRUCT_H_
 #define MB_SIZE (1024*1024UL)
-#define BLOCK_SIZE (MB_SIZE*16UL)
-#define BUFF_SIZE (MB_SIZE*8UL)//内存片大小8M
+#define BLOCK_SIZE (MB_SIZE*1UL)
+#define BUFF_SIZE (MB_SIZE*1UL)//内存片大小8M
 #define BUFF_PICE_SIZE (MB_SIZE)//每次传输的数据大小1M
 #ifndef EREASURE_N
 #define EREASURE_N 9 // 编码参数 RS（n,k）
