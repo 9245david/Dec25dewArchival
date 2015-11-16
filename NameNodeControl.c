@@ -158,6 +158,7 @@ void *handle_request(void * arg)
 	int32_t semid;
 	int32_t time = 0;
 	struct timeval recv_feedback_time = {0,0};
+	pFeedback FeedbackDToN = (pFeedback)recvbuff;
 	connfd = *((int32_t*)arg);
 	free(arg);
 	node_num = GetNodeIDFromConnfd(connfd);
@@ -201,6 +202,7 @@ void *handle_request(void * arg)
 	printf("while 等待信号量%s,",inet_ntoa(cliaddr.sin_addr));
     	sem_p(semid,node_num);
 	printf("while 获得信号两\n");
+	assert(g_feedbackVersion[node_num] ==  g_versionNum);
 	if( g_feedbackVersion[node_num]>g_versionNum)continue;
     	SendTaskToDatanode(connfd);//此处有一个DataTransportWrite
     	recv = DataTransportRead(connfd,recvbuff,sizeof(nFeedback));//首先接收数据长度参数
@@ -228,7 +230,10 @@ void *handle_request(void * arg)
         sem_p(semid,node_num);
         printf("获得信号两\n");
         SendTaskToDatanode(connfd);//此处有一个DataTransportWrite
-        recv = DataTransportRead(connfd,recvbuff,sizeof(nFeedback));//首先接收数据长度参数
+		do{
+        recv = DataTransportRead(connfd,recvbuff,sizeof(nFeedback));//发送完任务之后的接收
+
+		
 
 	gettimeofday(&recv_feedback_time,NULL);
         //接收各个节点的归档进度反馈
@@ -246,8 +251,8 @@ void *handle_request(void * arg)
                 }
         if(DEW_DEBUG >=1)printf("recv nFeedback from %d",GetNodeIDFromConnfd(connfd));
         WriteTaskFeedbackLog(connfd,recvbuff,sizeof(nFeedback),GetNodeIDFromConnfd(connfd),recv_feedback_time);//将datanode反馈的信息写入日志中
-    	ProcessDatanodeState(recvbuff, recv, connfd);//将反馈信息提交给归档管理器
-
+    //	ProcessDatanodeState(recvbuff, recv, connfd);//将反馈信息提交给归档管理器
+}while(FeedbackDToN->allocatedTask != -1);// 发送回来的反馈中有任务没有完成
 
 	if(DEW_DEBUG >=1)printf("get out of handle_request\n");
 	return NULL;

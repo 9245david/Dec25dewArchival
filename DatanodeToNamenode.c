@@ -224,7 +224,7 @@ struct sockaddr_in cliaddr;
 		ProcessTask(recvTaskBuff,recv);//将任务抛给任务处理模块
 		//如果是最后一次任务，即空任务，此时ProcessTask函数会将TaskRecvFinished设置为1
 		fprintf(stderr,"等待时间到,IP = %s\n",localIPaddress);
-		while(sendFeedback == false);//时间到了发送任务反馈给namenode
+		while(sendFeedback == false)usleep(10000);//时间到了发送任务反馈给namenode
 		fprintf(stderr,"时间到，准备发送反馈,IP = %s\n",localIPaddress);
 		FeedbackDToN->availableBandwidth = AVAILABLE;
 		FeedbackDToN->wholeBandwidth = WHOLE;
@@ -270,12 +270,42 @@ struct sockaddr_in cliaddr;
                 ProcessTask(recvTaskBuff,recv);//将任务抛给任务处理模块
                 //如果是最后一次任务，即空任务，此时ProcessTask函数会将TaskRecvFinished设置为1
 		fprintf(stderr,"节点等待所有任务完成，最后一个feedback\n");
+                while(sendFeedback == false)usleep(10000);//时间到了发送任务反馈给namenode
 		fprintf(stderr,"等待时间到,IP = %s\n",localIPaddress);
-                while(sendFeedback == false);//时间到了发送任务反馈给namenode
-                FeedbackDToN->availableBandwidth = AVAILABLE;
-                FeedbackDToN->wholeBandwidth = WHOLE;
-		while(g_unfinished_task!=0);
+               
+		while(g_unfinished_task!=0)
+		{
+		 FeedbackDToN->availableBandwidth = AVAILABLE;
+         FeedbackDToN->wholeBandwidth = WHOLE;
+	//	pthread_mutex_lock(&g_finished_task_lock);
+                FeedbackDToN-> allocatedTask = (-1)*g_unfinished_task;
+                FeedbackDToN->finishedTask = g_finished_task;
+	//	pthread_mutex_unlock(&g_finished_task_lock);
+		FeedbackDToN->finishedTime =20;
+                //if(g_finished_task >= task_length)
+		if(g_unfinished_task == 0)
+                {
+                        FeedbackDToN->finishedOrNot =1;
+                }
+                else
+                {
+                        FeedbackDToN->finishedOrNot =0;
+                }
+                send = DataTransportWrite(sock_DtoN, (char*)FeedbackDToN, length);
+                if(send != length)
+                {
+                        printf("send feedback error \n");
+                        return -1;
+                }
+                pthread_mutex_lock(&lockFeedback);
+                assert(sendFeedback == true);
+                sendFeedback = false;
+                pthread_mutex_unlock(&lockFeedback);
+				while(sendFeedback == false)usleep(10000);//时间到了发送任务反馈给namenode
+		}
 		fprintf(stderr,"节点所有任务完成\n");
+		FeedbackDToN->availableBandwidth = AVAILABLE;
+         FeedbackDToN->wholeBandwidth = WHOLE;
 		pthread_mutex_lock(&g_finished_task_lock);
                 FeedbackDToN-> allocatedTask = task_length;
                 FeedbackDToN->finishedTask = g_finished_task;
@@ -338,7 +368,8 @@ void * ProcessTime(void * taskTime)
 	sendFeedback = true;
 	pthread_mutex_unlock(&lockFeedback);
 	//已经回复了一个feedback
-	while(TaskRecvFinished(localIPaddress) != 1)
+	//while(TaskRecvFinished(localIPaddress) != 1)
+	while((TaskRecvFinished(localIPaddress) != 1)||(g_unfinished_task !=0))
 	{
 		sleep(oneTasktime.tv_sec);
 		while(true == sendFeedback);//当时为什么会用while

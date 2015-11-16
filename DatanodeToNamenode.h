@@ -7,8 +7,8 @@
 
 #ifndef DATANODETONAMENODE_H_
 #define DATANODETONAMENODE_H_
-#define AVAILABLE 64000
-#define WHOLE 64000
+#define AVAILABLE 6400 //MB/s
+#define WHOLE 6400
 //availableBandwidth 64
 //#define wholeBandwidth 100
 
