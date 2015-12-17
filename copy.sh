@@ -7,9 +7,10 @@ for i in  $1 $2 $3 $4 $5 $6 $7 $8 $9
 do
      #  ssh root@$IPHEAD$i mkdir /home/dew
 echo $i
-        ssh root@$IPHEAD$i "rm -rf /home/dew/Dec25dewArchival"
-      ssh root@$IPHEAD$i mkdir /home/dew/Dec25dewArchival
-        scp -r /home/dew/test/Dec25dewArchival/* root@$IPHEAD$i:/home/dew/Dec25dewArchival
+
+ssh root@$IPHEAD$i "rm -rf /home/dew/Dec25dewArchival/conf/*"
+     scp -r /home/dew/test/Dec25dewArchival/conf/* root@$IPHEAD$i:/home/dew/Dec25dewArchival/conf
+
 #	ssh root@$IPHEAD$i /home/dew/Dec25dewArchival/remake.sh &
 #       ssh root@$IPHEAD$i chmod +x /home/dew/Dec25dewArchival/Datanode.out
 #        ssh root@$IPHEAD$i /home/dew/Dec25dewArchival/Datanode.out >>out.log

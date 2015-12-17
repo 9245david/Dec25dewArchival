@@ -270,19 +270,19 @@ int32_t handle_connect(int32_t listen_sock)//返回0正常，返回其他值，�
 		len = sizeof(cliaddr);
 		int32_t nodenum = DATANODE_NUMBER;
 		int32_t block_name = TASK_END;
-		char FeedbackLog[50] = "TaskFeedbackLog.log";
+		char FeedbackLog[50] = "TaskFeedbackLog.log.new";
 		char log_tail[10];
 		sprintf(log_tail,"%d",block_name);	
 		for(i=0;i<10;i++)
 		{
 			if(log_tail[i]!='\0')
-				FeedbackLog[strlen("TaskFeedbackLog.log")+i] = log_tail[i];
+				FeedbackLog[strlen("TaskFeedbackLog.log.new")+i] = log_tail[i];
 			else break;
 		}
 		assert(i<10);	
-		FeedbackLog[strlen("TaskFeedbackLog.log")+i] = '\0';
+		FeedbackLog[strlen("TaskFeedbackLog.log.new")+i] = '\0';
 		//logFile = fopen("TaskFeedbackLog.log","a");
-		logFile = fopen(FeedbackLog,"a");
+		logFile = fopen(FeedbackLog,"a+");
 		assert(logFile!=NULL);
 		pthread_mutex_init(&logFileLock,NULL);
 		pthread_node_num = (pthread_t*)malloc(nodenum*sizeof(pthread_t));

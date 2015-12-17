@@ -60,6 +60,8 @@ typedef struct transportBlock{
 #include "DatanodeToDatanode.h"
 extern int32_t g_finished_task;
 extern int32_t g_unfinished_task;
+extern int32_t g_finished_block;
+extern struct timeval g_taskDoingtime;
 extern pthread_mutex_t g_finished_task_lock;
 extern int32_t g_recv_end ;
 pConnect g_pFreeClientBuffList = NULL;
@@ -288,6 +290,8 @@ void * ProcessChunkTask(void* argv)
 	pthread_mutex_lock(&g_finished_task_lock);
 	g_finished_task++;
 	g_unfinished_task--;
+        g_finished_block = g_finished_block + pChunkTask->waitForBlock + pChunkTask->destIPNum; 
+	if(g_unfinished_task <= 0)gettimeofday(&g_taskDoingtime,NULL);//任务完成以及最后一次发送feedback
 	pthread_mutex_unlock(&g_finished_task_lock);
         if(DEW_DEBUG >5)fprintf(stderr,"pchunktask finished\n");
 	

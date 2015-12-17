@@ -35,6 +35,9 @@ typedef struct RegistAndTaskFeedback{
 
 int32_t g_finished_task = 0;
 int32_t g_unfinished_task = 0;
+int32_t g_finished_block = 0;
+struct timeval g_taskDoingtime = {0,0};
+int32_t g_feedback_num = 0;
 pthread_mutex_t g_finished_task_lock;
 int32_t main(int32_t argc,char** argv)
 {
@@ -51,6 +54,13 @@ sigaction(SIGBUS, &myAction, NULL);
 sigaction(SIGABRT, &myAction, NULL);
 sigaction(SIGSYS, &myAction, NULL);
 sigaction(SIGPIPE, &myAction, NULL);//for tcp close ,and write error
+
+        FILE * weight_conf = NULL;
+        weight_conf = fopen("./conf/weight.conf","r");
+	assert(weight_conf !=NULL);
+        fscanf(weight_conf,"AVAILABLE = %d\n",&AVAILABLE);	
+        fclose(weight_conf);
+
 	pthread_mutex_init(&g_finished_task_lock,NULL);
 	PnamenodeID = (PNamenodeID)malloc(sizeof(NamenodeID));
 	assert(PnamenodeID != NULL);
@@ -227,16 +237,25 @@ struct sockaddr_in cliaddr;
 		while(sendFeedback == false)usleep(10000);//时间到了发送任务反馈给namenode
 		fprintf(stderr,"时间到，准备发送反馈,IP = %s\n",localIPaddress);
 		FeedbackDToN->availableBandwidth = AVAILABLE;
-		FeedbackDToN->wholeBandwidth = WHOLE;
 		
 		pthread_mutex_lock(&g_finished_task_lock);
 	//	FeedbackDToN-> allocatedTask = task_length;
 		FeedbackDToN-> allocatedTask = g_unfinished_task;
 		FeedbackDToN->finishedTask = g_finished_task;
+		FeedbackDToN->wholeBandwidth = g_finished_block;
 		g_finished_task = 0;
+                g_finished_block = 0;
 		pthread_mutex_unlock(&g_finished_task_lock);
 		fprintf(stderr,"获得锁，发送反馈,IP = %s\n",localIPaddress);
-		FeedbackDToN->finishedTime =20;
+		if(FeedbackDToN-> allocatedTask == 0)
+		{
+	    	timersub(&g_taskDoingtime, &taskStarttime, &g_taskDoingtime);//DatanodeToDatanode 获得g_taskDoingtmie
+		    FeedbackDToN->finishedTime =g_taskDoingtime.tv_sec - (g_feedback_num-1)*20;
+		}
+		else
+		{
+			FeedbackDToN->finishedTime = 20;
+		}
 	//	if(g_finished_task >= task_length)
 		assert(g_unfinished_task>=0);
 		if(g_unfinished_task == 0)
@@ -276,12 +295,23 @@ struct sockaddr_in cliaddr;
 		while(g_unfinished_task!=0)
 		{
 		 FeedbackDToN->availableBandwidth = AVAILABLE;
-         FeedbackDToN->wholeBandwidth = WHOLE;
 	//	pthread_mutex_lock(&g_finished_task_lock);
-                FeedbackDToN-> allocatedTask = (-1)*g_unfinished_task;
+                FeedbackDToN-> allocatedTask = g_unfinished_task;
                 FeedbackDToN->finishedTask = g_finished_task;
+                FeedbackDToN->availableStorageSpace = -1;
+                FeedbackDToN->wholeBandwidth = g_finished_block;
+	        g_finished_task = 0;
+                g_finished_block = 0;
 	//	pthread_mutex_unlock(&g_finished_task_lock);
-		FeedbackDToN->finishedTime =20;
+		if(FeedbackDToN-> allocatedTask == 0)
+		{
+	    	timersub(&g_taskDoingtime, &taskStarttime, &g_taskDoingtime);//DatanodeToDatanode 获得g_taskDoingtmie
+		    FeedbackDToN->finishedTime =g_taskDoingtime.tv_sec - (g_feedback_num-1)*20;
+		}
+		else
+		{
+			FeedbackDToN->finishedTime = 20;
+		}
                 //if(g_finished_task >= task_length)
 		if(g_unfinished_task == 0)
                 {
@@ -305,12 +335,23 @@ struct sockaddr_in cliaddr;
 		}
 		fprintf(stderr,"节点所有任务完成\n");
 		FeedbackDToN->availableBandwidth = AVAILABLE;
-         FeedbackDToN->wholeBandwidth = WHOLE;
 		pthread_mutex_lock(&g_finished_task_lock);
                 FeedbackDToN-> allocatedTask = task_length;
                 FeedbackDToN->finishedTask = g_finished_task;
+                FeedbackDToN->wholeBandwidth = g_finished_block;
 		pthread_mutex_unlock(&g_finished_task_lock);
-		FeedbackDToN->finishedTime =20;
+		if(FeedbackDToN-> allocatedTask == -1)
+		{
+		    
+	    	timersub(&g_taskDoingtime, &taskStarttime, &g_taskDoingtime);//DatanodeToDatanode 获得g_taskDoingtmie
+		    if(g_taskDoingtime.tv_sec <(g_feedback_num-1)*20)FeedbackDToN->finishedTime = 0;
+			else FeedbackDToN->finishedTime =g_taskDoingtime.tv_sec - (g_feedback_num-1)*20;
+				  
+		}
+		else
+		{
+			FeedbackDToN->finishedTime = 20;
+		}
                 //if(g_finished_task >= task_length)
 		if(g_unfinished_task == 0)
                 {
@@ -364,6 +405,7 @@ void * ProcessTime(void * taskTime)
 	assert((sleepTime.tv_sec >= 0));
 	assert((archiveAlreadyTime.tv_sec <= 10) );
 	sleep(sleepTime.tv_sec);
+	g_feedback_num ++;
 	pthread_mutex_lock(&lockFeedback);
 	sendFeedback = true;
 	pthread_mutex_unlock(&lockFeedback);
@@ -373,7 +415,7 @@ void * ProcessTime(void * taskTime)
 	{
 		sleep(oneTasktime.tv_sec);
 		while(true == sendFeedback);//当时为什么会用while
-	
+	    g_feedback_num ++;
 	//	assert(sendFeedback == false);//时间到了不一定就可以发送了，状态位sendFeedback 可能还是true,因为发送过程太慢了？
 		if(true != sendFeedback)
 		{
@@ -402,6 +444,7 @@ void ProcessTask(char *recvTaskBuff,int64_t recv)
 	{
 	//	处理没有任务的情况
        if(DEW_DEBUG >0)fprintf(stderr,"本次接受的任务长度为0\n");
+	   if(g_unfinished_task <= 0)gettimeofday(&g_taskDoingtime,NULL);
 	return;
 	}
 	assert(TaskNum>0);

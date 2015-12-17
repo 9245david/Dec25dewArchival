@@ -7,7 +7,7 @@
 
 #ifndef DATANODETONAMENODE_H_
 #define DATANODETONAMENODE_H_
-#define AVAILABLE 6400 //MB/s
+//#define AVAILABLE 6400//MB/s
 #define WHOLE 6400
 //availableBandwidth 64
 //#define wholeBandwidth 100
@@ -19,6 +19,7 @@ int32_t TaskRecvFinished(char * localIPaddress);
 void * ProcessTime(void * taskTime);
 void ProcessTask(char *recvTaskBuff,int64_t recv);//将任务抛给任务处理模块
 int32_t run_plan = 1;
+int32_t AVAILABLE = 0;
 #ifndef DEW_DEBUG
 #define DEW_DEBUG 1
 #endif
