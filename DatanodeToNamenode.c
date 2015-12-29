@@ -27,15 +27,20 @@ typedef struct RegistAndTaskFeedback{
 	double wholeStorageSpace;//MB
 	double availableStorageSpace;
 	int32_t finishedOrNot ;//如果为1表示分配的任务已经完成，为0表示没有完成，只有当第一次注册时默认为1不是这个含义
-	int32_t allocatedTask ;//被分配的任务数量，即数据块的个数
-	int32_t finishedTask ; //在预想时间内完成的数据块的个数
+	int32_t allocatedTask ;//被分配的任务数量，即数据块的个数//12-17号以前错误记录为未完成任务数
+	int32_t finishedTask ; //在预想时间内完成的数据块的个数//12-17号以前错误记录已完成为任务数
 	int32_t finishedTime ; //如果完成了，提前完成所花费的时间
+	int32_t finishedBlock;//12-17修改，当前窗口已完成数据块
+	int32_t unfinishedBlock;//12-17修改，当前窗口未完成数据块unfinishedblock=allocatedblock+上次未完成-finishedblock
+	int32_t allocatedBlock;//12-17修改，当前窗口分配的数据块
 }nFeedback,*pFeedback;
 #pragma pack(pop)
 
 int32_t g_finished_task = 0;
 int32_t g_unfinished_task = 0;
 int32_t g_finished_block = 0;
+int32_t g_unfinished_block = 0;
+int32_t g_allocated_block = 0;
 struct timeval g_taskDoingtime = {0,0};
 int32_t g_feedback_num = 0;
 pthread_mutex_t g_finished_task_lock;
@@ -155,6 +160,8 @@ struct sockaddr_in cliaddr;
 	FeedbackDToN->wholeBandwidth = WHOLE;
 	FeedbackDToN->finishedOrNot =1;
 	FeedbackDToN->finishedTime =20;
+	
+	FeedbackDToN->allocatedBlock = 0;
 
 	if(DataTransportWrite(sock_DtoN, (char*)FeedbackDToN, length) != length)
 		{
@@ -228,8 +235,10 @@ struct sockaddr_in cliaddr;
 		    			close(sock_DtoN);
 		    			return -1;
 		    		}
+        g_allocated_block = RecvTaskOfBlockNum(task_length,recvTaskBuff);
 		pthread_mutex_lock(&g_finished_task_lock);
 		if(task_length>0)g_unfinished_task = g_unfinished_task+task_length;
+		if(g_allocated_block>0)g_unfinished_block = g_unfinished_block + g_allocated_block;
 		pthread_mutex_unlock(&g_finished_task_lock);
 		ProcessTask(recvTaskBuff,recv);//将任务抛给任务处理模块
 		//如果是最后一次任务，即空任务，此时ProcessTask函数会将TaskRecvFinished设置为1
@@ -242,7 +251,10 @@ struct sockaddr_in cliaddr;
 	//	FeedbackDToN-> allocatedTask = task_length;
 		FeedbackDToN-> allocatedTask = g_unfinished_task;
 		FeedbackDToN->finishedTask = g_finished_task;
-		FeedbackDToN->wholeBandwidth = g_finished_block;
+		
+		FeedbackDToN->unfinishedBlock = g_unfinished_block;
+		FeedbackDToN->finishedBlock = g_finished_block;
+		FeedbackDToN->allocatedBlock = g_allocated_block;
 		g_finished_task = 0;
                 g_finished_block = 0;
 		pthread_mutex_unlock(&g_finished_task_lock);
@@ -295,14 +307,18 @@ struct sockaddr_in cliaddr;
 		while(g_unfinished_task!=0)
 		{
 		 FeedbackDToN->availableBandwidth = AVAILABLE;
-	//	pthread_mutex_lock(&g_finished_task_lock);
+		pthread_mutex_lock(&g_finished_task_lock);
                 FeedbackDToN-> allocatedTask = g_unfinished_task;
                 FeedbackDToN->finishedTask = g_finished_task;
                 FeedbackDToN->availableStorageSpace = -1;
-                FeedbackDToN->wholeBandwidth = g_finished_block;
+             //   FeedbackDToN->wholeBandwidth = g_finished_block;
+			 
+			 FeedbackDToN->unfinishedBlock = g_unfinished_block;
+			  FeedbackDToN->finishedBlock = g_finished_block;
+	      	  FeedbackDToN->allocatedBlock = 0;
 	        g_finished_task = 0;
                 g_finished_block = 0;
-	//	pthread_mutex_unlock(&g_finished_task_lock);
+		pthread_mutex_unlock(&g_finished_task_lock);
 		if(FeedbackDToN-> allocatedTask == 0)
 		{
 	    	timersub(&g_taskDoingtime, &taskStarttime, &g_taskDoingtime);//DatanodeToDatanode 获得g_taskDoingtmie
@@ -332,13 +348,17 @@ struct sockaddr_in cliaddr;
                 sendFeedback = false;
                 pthread_mutex_unlock(&lockFeedback);
 				while(sendFeedback == false)usleep(10000);//时间到了发送任务反馈给namenode
-		}
+		}//while
 		fprintf(stderr,"节点所有任务完成\n");
 		FeedbackDToN->availableBandwidth = AVAILABLE;
 		pthread_mutex_lock(&g_finished_task_lock);
                 FeedbackDToN-> allocatedTask = task_length;
                 FeedbackDToN->finishedTask = g_finished_task;
-                FeedbackDToN->wholeBandwidth = g_finished_block;
+               // FeedbackDToN->wholeBandwidth = g_finished_block;
+				
+				FeedbackDToN->unfinishedBlock = g_unfinished_block;
+		        FeedbackDToN->finishedBlock = g_finished_block;
+	      	    FeedbackDToN->allocatedBlock = 0;
 		pthread_mutex_unlock(&g_finished_task_lock);
 		if(FeedbackDToN-> allocatedTask == -1)
 		{
@@ -377,6 +397,37 @@ struct sockaddr_in cliaddr;
 	return 2;
 	}
 
+int32_t RecvTaskOfBlockNum(int32_t taskNum, char * recvBuff)
+{
+	pTaskBlock pChunkTask = NULL;
+	int32_t blockNum = 0;
+	int32_t i = 0;
+	
+	//本地数据块
+	int32_t * localBlock = NULL;
+	int32_t localBlockNum = 0;
+	int32_t waitBlockNum = 0;
+	int32_t destBlockNum = 0;
+	
+	if(taskNum<=0)return blockNum;
+	for(i = 0; i < taskNum; i++)
+	{
+	   localBlockNum = 0;
+	   waitBlockNum = 0;
+	   destBlockNum = 0;
+	   pChunkTask = (pTaskBlock)(recvBuff + i*sizeof(nTaskBlock));
+	   localBlock = pChunkTask -> localTaskBlock;
+       while(*(localBlock+localBlockNum) != -1)
+		{
+			localBlockNum ++;
+		}
+		waitBlockNum = pChunkTask -> waitForBlock;
+		destBlockNum = pChunkTask -> destIPNum;
+		blockNum = blockNum + localBlockNum + waitBlockNum + destBlockNum;
+	}
+	if(DEW_DEBUG >0)fprintf(stderr,"12-17 blockNum %d\n",blockNum);
+	return blockNum;
+}
 int32_t TaskRecvFinished(char * localIPaddress)
 {
 	//任务接收完成，与否，每个数据节点的参数是本地的iｐ地址，因为iｐ可以标识不同的节点

@@ -361,6 +361,7 @@ list_head *get_weight_strp_lay(list_head* strp_lay_head,int32_t * weight)
 	int32_t j = 0;
 	int32_t flag = 0;// 冒泡过程有交换数据则为0,没有交换数据则为1,没有交换即退出
 	int32_t nodeID = 0; //节点号
+	int32_t tmp_nodeID = 0;//权益之计节点号
 	int32_t node_num = 0;//包含了数据块的节点数目
 	int32_t node_weight_tmp = 0;
 	int32_t block_id = 0;//系统block_id 由1开始
@@ -467,6 +468,10 @@ list_head *get_weight_strp_lay(list_head* strp_lay_head,int32_t * weight)
 			tmp_node_strp_block->blkID = container_of(p_temp_node,Nblk_inverted,listblk)->blkID;
 			tmp_node_strp_block->blk_nodeID = nodeID;
 			node_weight_tmp--;
+			//权益之计
+			node_weight_tmp--;
+			
+			
 			block_exist[(block_id-1)%(EREASURE_N-EREASURE_K)] = 1;
 			block_num ++;
 		}
@@ -477,7 +482,7 @@ list_head *get_weight_strp_lay(list_head* strp_lay_head,int32_t * weight)
 	weight[nodeID-1] = node_weight_tmp;//权重值会更新，每次分配一个条带之后
 	p1 = p1->next;
 	}
-	//给节点权重值进行排序，降序排列
+	//给节点权重值进行排序，降序排列 //修正 数据块数量降序排序
 	node_num  =0;
 	p_temp_node = task_strp_lay_head->next;
 	while(p_temp_node != task_strp_lay_head)
@@ -513,6 +518,12 @@ list_head *get_weight_strp_lay(list_head* strp_lay_head,int32_t * weight)
 	//	assert(p_task_sort3 == task_strp_lay_head);
 		if(flag == 1)break;//没有交换产生
 	}
+	
+	//权益之计
+		p_task_sort1 = task_strp_lay_head->next;
+		length2 = get_length(&(container_of(p_task_sort1,Nblk_inverted,listNode)->listblk));
+	    tmp_nodeID = container_of(p_task_sort1,Nblk_inverted,listNode)->blk_nodeID;
+		weight[tmp_nodeID-1] = weight[tmp_nodeID-1]-(EREASURE_N-2*length2);
 	if(DEW_DEBUG >=1)
 		{
 			printf("inside task lay\n");

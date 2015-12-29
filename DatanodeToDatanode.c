@@ -61,6 +61,7 @@ typedef struct transportBlock{
 extern int32_t g_finished_task;
 extern int32_t g_unfinished_task;
 extern int32_t g_finished_block;
+extern int32_t g_unfinished_block;
 extern struct timeval g_taskDoingtime;
 extern pthread_mutex_t g_finished_task_lock;
 extern int32_t g_recv_end ;
@@ -290,7 +291,8 @@ void * ProcessChunkTask(void* argv)
 	pthread_mutex_lock(&g_finished_task_lock);
 	g_finished_task++;
 	g_unfinished_task--;
-        g_finished_block = g_finished_block + pChunkTask->waitForBlock + pChunkTask->destIPNum; 
+    g_finished_block = g_finished_block + localNum + pChunkTask->waitForBlock + pChunkTask->destIPNum; 
+	g_unfinished_block = g_unfinished_block - (localNum + pChunkTask->waitForBlock + pChunkTask->destIPNum);
 	if(g_unfinished_task <= 0)gettimeofday(&g_taskDoingtime,NULL);//任务完成以及最后一次发送feedback
 	pthread_mutex_unlock(&g_finished_task_lock);
         if(DEW_DEBUG >5)fprintf(stderr,"pchunktask finished\n");
@@ -386,7 +388,7 @@ void EncodeData(pConnectServer* connfdServer,pSingleBuff* pLocalBuff,pConnect* c
 	while(pChunkTask->localTaskBlock[i] !=-1)
 	{
 		i++;
-		assert(i<(EREASURE_N-EREASURE_K));
+		assert(i<=(EREASURE_N-EREASURE_K));
 		localNum ++;
 	}
 	while((piceNum--)>0)

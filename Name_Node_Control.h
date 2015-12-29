@@ -37,6 +37,9 @@ typedef struct RegistAndTaskFeedback{
 	int32_t allocatedTask ;//被分配的任务数量，即数据块的个数
 	int32_t finishedTask ; //在预想时间内完成的数据块的个数
 	int32_t finishedTime ; //如果完成了，提前完成所花费的时间
+        int32_t finishedBlock;//12-17修改，当前窗口已完成数据块
+        int32_t unfinishedBlock;//12-17修改，当前窗口未完成数据块unfinishedblock=allocatedblock+上次未完成-finishedblock
+        int32_t allocatedBlock;//12-17修改，当前窗口分配的数据块
 }nFeedback,*pFeedback;
 //extern typedef struct RegistAndTaskFeedback;
 //extern typedef nFeedback;

@@ -430,10 +430,12 @@ void WriteTaskFeedbackLog(int32_t connfd,char *recvbuff,uint64_t length,int32_t 
 	
 	if(DEW_DEBUG>=1)printf("inside WriteTaskFeedbackLog \n");
 	pthread_mutex_lock(&logFileLock);
-	fprintf(logFile,"node_id %d,wholeBandwidth %.0lf,available%.0lf,wholeStorage%.0lf,availableStorage%.0lf",node_id,FeedbackDToN->wholeBandwidth,FeedbackDToN->availableBandwidth,FeedbackDToN->wholeStorageSpace,FeedbackDToN->availableStorageSpace);
-	fprintf(logFile,"finishedornot%u,allocated%d,finished%u,finishtime%u,feedback time%lld\n",FeedbackDToN->finishedOrNot,FeedbackDToN->allocatedTask,FeedbackDToN->finishedTask,FeedbackDToN->finishedTime,recv_feedback_time.tv_sec);
+//	fprintf(logFile,"node_id %d,wholeBandwidth %d,available%.0lf,wholeStorage%.0lf,availableStorage%.0lf",node_id,FeedbackDToN->unfinishedBlock,FeedbackDToN->availableBandwidth,FeedbackDToN->wholeStorageSpace,FeedbackDToN->availableStorageSpace);
+//	fprintf(logFile,"finishedornot%u,allocated%d,finished%u,finishtime%u,feedback time%lld\n",FeedbackDToN->finishedOrNot,FeedbackDToN->allocatedTask,FeedbackDToN->finishedTask,FeedbackDToN->finishedTime,recv_feedback_time.tv_sec);
+    fprintf(logFile,"node_id %d,unfinished%d,available%.0lf,wholeStorage%.0lf,availableStorage%.0lf",node_id,FeedbackDToN->unfinishedBlock,FeedbackDToN->availableBandwidth,FeedbackDToN->wholeStorageSpace,FeedbackDToN->availableStorageSpace);   
+    fprintf(logFile,"finishedornot%u,allocated%d,finished%u,finishtime%u,feedbacktime%lld\n",FeedbackDToN->finishedOrNot,FeedbackDToN->allocatedBlock,FeedbackDToN->finishedBlock,FeedbackDToN->finishedTime,recv_feedback_time.tv_sec);    
 	fflush(logFile);
-	printf("%u,%d,%u,%u\n",FeedbackDToN->finishedOrNot,FeedbackDToN->allocatedTask,FeedbackDToN->finishedTask,FeedbackDToN->finishedTime);
+	printf("%u,%d,%u,%u\n",FeedbackDToN->finishedOrNot,FeedbackDToN->allocatedBlock,FeedbackDToN->finishedBlock,FeedbackDToN->finishedTime);
 	pthread_mutex_unlock(&logFileLock);
 	/*
 	uint64_t wholeBandwidth;//B/s，总带宽
@@ -491,7 +493,7 @@ void *ProvideTask(void *arg)
 				g_pDatanodeTask[i].singleStripTask = NULL;
 			}
 		}
-		else{//之后的反馈过程
+/*		else{//之后的反馈过程
 			for(i=0;i<nodeNum;i++)
 			{
 				g_pDatanodeTask[i].taskNum = 0;
@@ -510,6 +512,34 @@ void *ProvideTask(void *arg)
 				else//上一回合分配了任务，但是任务没有完成，只能以上次已经完成的块数作为本次的能力，能力减去为完成的工作
 				{
 					g_weight[i] = g_nodeFeedback[i].finishedTask*2 - g_nodeFeedback[i].allocatedTask;
+					if(g_weight[i]<0)
+						{
+							g_weight[i]=0;
+							g_pDatanodeTask[i].historyNotFinished = true;
+						}
+				}
+			}//for
+			}//else
+*/
+	else{//之后的反馈过程
+			for(i=0;i<nodeNum;i++)
+			{
+				g_pDatanodeTask[i].taskNum = 0;
+				g_pDatanodeTask[i].singleStripTask = NULL;
+				g_pDatanodeTask[i].historyNotFinished = false;//默认正常任务完成情况
+				if((g_nodeFeedback[i].allocatedBlock == 0)&&(g_nodeFeedback[i].finishedBlock == 0)&&g_nodeFeedback[i].unfinishedBlock == 0)//上一个回合并没有分配任务,也没有历史任务
+				{
+					g_weight[i] = g_nodeFeedback[i].availableBandwidth * TASK_TIME / (BLOCK_SIZE/MB_SIZE);
+
+				}
+				else if(g_nodeFeedback[i].finishedOrNot == 1)//任务已经完成，依据完成时间的比例得到下次发送的任务个数上限
+				{
+					assert(g_nodeFeedback[i].finishedTime >0);
+					g_weight[i] =	g_nodeFeedback[i].finishedBlock * TASK_TIME / g_nodeFeedback[i].finishedTime;
+				}
+				else//上一回合分配了任务，但是任务没有完成，只能以上次已经完成的块数作为本次的能力，能力减去为完成的工作
+				{
+					g_weight[i] = g_nodeFeedback[i].finishedBlock - g_nodeFeedback[i].unfinishedBlock;
 					if(g_weight[i]<0)
 						{
 							g_weight[i]=0;
@@ -715,11 +745,65 @@ int ProvideTaskAlgorithm(int32_t * g_weight,pTaskHead g_pDatanodeTask)
 
 				}
 			}
-			else//执行PLANB
+			else if(run_plan == PLANB)//执行PLANB
 			{
-
+                 	node_ID = task[0][0];
+			aready_task_num =  (g_pDatanodeTask +node_ID-1)->taskNum;
+			(g_pDatanodeTask +node_ID-1)->taskNum ++;
+			block_num = task[0][1];
+			(g_pDatanodeTask +node_ID-1)->singleStripTask = \
+					realloc((g_pDatanodeTask +node_ID-1)->singleStripTask,(aready_task_num+1)*sizeof(nTaskBlock));
+			p_temp_task_block = (g_pDatanodeTask +node_ID-1)->singleStripTask+aready_task_num;
+			p_temp_task_block->chunkID = g_TaskStartBlockNum/(EREASURE_N-EREASURE_K);
+			for(i=0;i<EREASURE_N;i++)p_temp_task_block->localTaskBlock[i] = -1;//初始化数组为-1，void * ProcessChunkTask(void* argv)里面有用到
+			for(i=0;i<block_num;i++)p_temp_task_block->localTaskBlock[i] = task[0][i+2];
+			p_temp_task_block->waitForBlock = EREASURE_N-EREASURE_K - block_num;
+			p_temp_task_block->encode = 1;
+			p_temp_task_block->waitedBlockType = 0;
+			for(j=0;j<EREASURE_N;j++)p_temp_task_block->waitedBlock[j] = -1;
+			if(p_temp_task_block->waitForBlock > 0)
+			{
+				j=0;
+				for(i=1;i<node_num;i++)
+				{
+					for(k=0;k<task[i][1];k++)
+					{
+						p_temp_task_block->waitedBlock[j++] = task[i][k+2];
+					}
+				}
+				assert(j == p_temp_task_block->waitForBlock);
 			}
+			p_temp_task_block->destIPNum =0;
+			//p_temp_task_block->destIP[];
 
+
+				for(i=1; i<node_num; i++)
+				{
+
+					local_node_ID = task[i][0];
+					aready_task_num =  (g_pDatanodeTask +local_node_ID-1)->taskNum;
+					(g_pDatanodeTask +local_node_ID-1)->taskNum ++;
+					block_num = task[i][1];
+					(g_pDatanodeTask +local_node_ID-1)->singleStripTask = \
+							realloc((g_pDatanodeTask +local_node_ID-1)->singleStripTask,(aready_task_num+1)*sizeof(nTaskBlock));
+					p_temp_task_block = (g_pDatanodeTask +local_node_ID-1)->singleStripTask+aready_task_num;
+					p_temp_task_block->chunkID = g_TaskStartBlockNum/(EREASURE_N-EREASURE_K);
+					for(j=0;j<EREASURE_N;j++)p_temp_task_block->localTaskBlock[j] = -1;
+					for(j=0;j<block_num;j++)p_temp_task_block->localTaskBlock[j] = task[i][j+2];
+					p_temp_task_block->waitForBlock = 0;
+					p_temp_task_block->encode = 0;
+					p_temp_task_block->waitedBlockType = 0;
+					//p_temp_task_block->waitedBlock[j++] = 0;//不等待数据，无需接收数据
+					for(j=0;j<EREASURE_N;j++)p_temp_task_block->waitedBlock[j] = -1;
+					p_temp_task_block->destIPNum =block_num;
+					for(j=0;j<block_num;j++)
+					memcpy(p_temp_task_block->destIP[j],g_nodeIP[node_ID-1],IP_LENGTH);     
+			}
+		}
+        else
+		{
+		
+		}
 		g_TaskStartBlockNum = g_TaskStartBlockNum + EREASURE_N - EREASURE_K;
 //*************************
 		if(DEW_DEBUG>=4)

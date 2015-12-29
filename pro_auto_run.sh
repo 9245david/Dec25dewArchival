@@ -1,9 +1,9 @@
 #!/bin/bash
-for task in 18
+for task in 1440
 do
 sed -i 's/\s[0-9]*$/ '$task'/g' ./conf/task.conf
 #for weight in 108 112 120 128 136 144 156
-for weight in 32 
+for weight in 156 200 6400
 do
 sed -i 's/\s[0-9]*$/ '$weight'/g' ./conf/weight.conf
 date
