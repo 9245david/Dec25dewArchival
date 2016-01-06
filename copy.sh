@@ -10,6 +10,7 @@ echo $i
 
 ssh root@$IPHEAD$i "rm -rf /home/dew/Dec25dewArchival/conf/*"
      scp -r /home/dew/test/Dec25dewArchival/conf/* root@$IPHEAD$i:/home/dew/Dec25dewArchival/conf
+     scp -r /home/dew/test/Dec25dewArchival/conf/weight.conf root@$IPHEAD$i:/home/dew/Dec25dewArchival/conf/weight.conf
 
 #	ssh root@$IPHEAD$i /home/dew/Dec25dewArchival/remake.sh &
 #       ssh root@$IPHEAD$i chmod +x /home/dew/Dec25dewArchival/Datanode.out

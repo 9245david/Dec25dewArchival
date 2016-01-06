@@ -546,6 +546,7 @@ void *ProvideTask(void *arg)
 							g_pDatanodeTask[i].historyNotFinished = true;
 						}
 				}
+                        //g_weight[i] = g_nodeFeedback[i].availableBandwidth * TASK_TIME / (BLOCK_SIZE/MB_SIZE);
 			}//for
 			}//else
 	//	ProvideTaskAlgorithm(g_weight,g_TaskStartBlockNum,g_pDatanodeTask);

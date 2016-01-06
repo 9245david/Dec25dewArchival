@@ -1,11 +1,8 @@
 #!/bin/bash
-for task in 1440
+for task in 1440 
 do
 sed -i 's/\s[0-9]*$/ '$task'/g' ./conf/task.conf
-#for weight in 108 112 120 128 136 144 156
-for weight in 156 200 6400
-do
-sed -i 's/\s[0-9]*$/ '$weight'/g' ./conf/weight.conf
+./set_weight.sh
 date
 #cat ./conf/weight.conf
 #cat ./conf/task.conf
@@ -13,7 +10,7 @@ echo > TaskFeedbackLog.log.new$task
 killall NameNode.out
 ./remove_all_semid.sh
 ./runclean.sh `cat conf/IP_FOR_SHELL.conf`
-./copy.sh `cat conf/IP_FOR_SHELL.conf`
+#./copy.sh `cat conf/IP_FOR_SHELL.conf`
 ./NameNode.out&
 ./run.sh `cat conf/IP_FOR_SHELL.conf`&
 #./auto_run.sh&
@@ -36,10 +33,11 @@ flag=`ipcs -s |grep root|grep 9|awk '{print $2}'|wc -l`
 done
 #killall NameNode.out
 string=`date -d today +"%Y%m%d%H%M"`
+weight=`cat conf/weight_nodes.conf| sed 's/ //g'`
 cat TaskFeedbackLog.log.new$task > out_${string}_${task}_${weight}
 #rm -rf TaskFeedbackLog.log.new$task
 cat TaskFeedbackLog.log.new$task >> TaskFeedbackLog.log.12_8.new$task
 rm -rf TaskFeedbackLog.log.new$task
 ./deal_result.sh out_${string}_${task}_${weight}
-done
+
 done
