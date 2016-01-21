@@ -40,6 +40,9 @@ typedef struct RegistAndTaskFeedback{
         int32_t finishedBlock;//12-17修改，当前窗口已完成数据块
         int32_t unfinishedBlock;//12-17修改，当前窗口未完成数据块unfinishedblock=allocatedblock+上次未完成-finishedblock
         int32_t allocatedBlock;//12-17修改，当前窗口分配的数据块
+        int32_t finishedNet;//1-21修改，当前窗口已完成网络数据块
+        int32_t unfinishedNet;//1-21修改，当前窗口未完成网络unfinishednet=allocatednet+上次未完成-finishednet
+        int32_t allocatedNet;//1-21修改，当前窗口分配的网络数据块
 }nFeedback,*pFeedback;
 //extern typedef struct RegistAndTaskFeedback;
 //extern typedef nFeedback;

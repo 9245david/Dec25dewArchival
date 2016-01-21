@@ -41,6 +41,7 @@
 char *dataNodeIP[IP_LENGTH];
 
 FILE* logFile = NULL;//打开一个已经存在的文件
+FILE* weightFile = NULL;//打开一个已经存在的文件
 pthread_mutex_t logFileLock;
 key_t key_task ;
 int32_t g_send_end = 0;
@@ -432,8 +433,15 @@ void WriteTaskFeedbackLog(int32_t connfd,char *recvbuff,uint64_t length,int32_t 
 	pthread_mutex_lock(&logFileLock);
 //	fprintf(logFile,"node_id %d,wholeBandwidth %d,available%.0lf,wholeStorage%.0lf,availableStorage%.0lf",node_id,FeedbackDToN->unfinishedBlock,FeedbackDToN->availableBandwidth,FeedbackDToN->wholeStorageSpace,FeedbackDToN->availableStorageSpace);
 //	fprintf(logFile,"finishedornot%u,allocated%d,finished%u,finishtime%u,feedback time%lld\n",FeedbackDToN->finishedOrNot,FeedbackDToN->allocatedTask,FeedbackDToN->finishedTask,FeedbackDToN->finishedTime,recv_feedback_time.tv_sec);
-    fprintf(logFile,"node_id %d,unfinished%d,available%.0lf,wholeStorage%.0lf,availableStorage%.0lf",node_id,FeedbackDToN->unfinishedBlock,FeedbackDToN->availableBandwidth,FeedbackDToN->wholeStorageSpace,FeedbackDToN->availableStorageSpace);   
+
+// 1-21之前的版本，即无法检测网络块
+//    fprintf(logFile,"node_id %d,unfinished%d,available%.0lf,wholeStorage%.0lf,availableStorage%.0lf",node_id,FeedbackDToN->unfinishedBlock,FeedbackDToN->availableBandwidth,FeedbackDToN->wholeStorageSpace,FeedbackDToN->availableStorageSpace);   
+//    fprintf(logFile,"finishedornot%u,allocated%d,finished%u,finishtime%u,feedbacktime%lld\n",FeedbackDToN->finishedOrNot,FeedbackDToN->allocatedBlock,FeedbackDToN->finishedBlock,FeedbackDToN->finishedTime,recv_feedback_time.tv_sec);    
+
+
+    fprintf(logFile,"node_id %d,unfinished%d,available%.0lf,allocatedNet%d,finishedNet%d",node_id,FeedbackDToN->unfinishedBlock,FeedbackDToN->availableBandwidth,FeedbackDToN->allocatedNet,FeedbackDToN->finishedNet);   
     fprintf(logFile,"finishedornot%u,allocated%d,finished%u,finishtime%u,feedbacktime%lld\n",FeedbackDToN->finishedOrNot,FeedbackDToN->allocatedBlock,FeedbackDToN->finishedBlock,FeedbackDToN->finishedTime,recv_feedback_time.tv_sec);    
+
 	fflush(logFile);
 	printf("%u,%d,%u,%u\n",FeedbackDToN->finishedOrNot,FeedbackDToN->allocatedBlock,FeedbackDToN->finishedBlock,FeedbackDToN->finishedTime);
 	pthread_mutex_unlock(&logFileLock);
@@ -475,6 +483,7 @@ void *ProvideTask(void *arg)
 	int32_t nodeNum = DATANODE_NUMBER;
 	int32_t i=0;
 	int32_t semid = sem_openid(key_task);
+        FILE* weightFile = NULL;
 	g_pDatanodeTask = (pTaskHead)malloc(sizeof(nTaskHead)*DATANODE_NUMBER);
 	assert(g_pDatanodeTask != NULL);
 	g_TaskStartBlockNum = 0;//初始化块号
@@ -528,30 +537,47 @@ void *ProvideTask(void *arg)
 				g_pDatanodeTask[i].singleStripTask = NULL;
 				g_pDatanodeTask[i].historyNotFinished = false;//默认正常任务完成情况
 				if((g_nodeFeedback[i].allocatedBlock == 0)&&(g_nodeFeedback[i].finishedBlock == 0)&&g_nodeFeedback[i].unfinishedBlock == 0)//上一个回合并没有分配任务,也没有历史任务
+//上一回合有权重，但是没有分配到数据块，这样的操作会导致中间权重突变i，所以应该不操作，因为这样的情况一定会有权值
 				{
-					g_weight[i] = g_nodeFeedback[i].availableBandwidth * TASK_TIME / (BLOCK_SIZE/MB_SIZE);
+				//	g_weight[i] = g_nodeFeedback[i].availableBandwidth * TASK_TIME / (BLOCK_SIZE/MB_SIZE);
 
+				}
+				else if((g_nodeFeedback[i].allocatedBlock == 0)&&(g_nodeFeedback[i].finishedOrNot == 1))//任务已经完成，finished 不为0，但是上一个时间窗口没有给任务，速率可能不正常，依据完成任务个数
+				{
+					assert(g_nodeFeedback[i].finishedTime >0);
+					g_weight[i] =	g_nodeFeedback[i].finishedBlock;
+                                        if(BLOCK_NET == 1)g_weight[i] =   g_nodeFeedback[i].finishedNet;
 				}
 				else if(g_nodeFeedback[i].finishedOrNot == 1)//任务已经完成，依据完成时间的比例得到下次发送的任务个数上限
 				{
 					assert(g_nodeFeedback[i].finishedTime >0);
 					g_weight[i] =	g_nodeFeedback[i].finishedBlock * TASK_TIME / g_nodeFeedback[i].finishedTime;
+                                        if(BLOCK_NET == 1)g_weight[i] = g_nodeFeedback[i].finishedNet * TASK_TIME / g_nodeFeedback[i].finishedTime;
 				}
 				else//上一回合分配了任务，但是任务没有完成，只能以上次已经完成的块数作为本次的能力，能力减去为完成的工作
 				{
 					g_weight[i] = g_nodeFeedback[i].finishedBlock - g_nodeFeedback[i].unfinishedBlock;
+                                        if(BLOCK_NET == 1)g_weight[i] =g_nodeFeedback[i].finishedNet - g_nodeFeedback[i].unfinishedNet;
 					if(g_weight[i]<0)
 						{
 							g_weight[i]=0;
 							g_pDatanodeTask[i].historyNotFinished = true;
 						}
 				}
-                        //g_weight[i] = g_nodeFeedback[i].availableBandwidth * TASK_TIME / (BLOCK_SIZE/MB_SIZE);
+                       // g_weight[i] = g_nodeFeedback[i].availableBandwidth * TASK_TIME / (BLOCK_SIZE/MB_SIZE);
 			}//for
 			}//else
 	//	ProvideTaskAlgorithm(g_weight,g_TaskStartBlockNum,g_pDatanodeTask);
 		//依据权重值，本次分配的起始块号，得到g_pDatanodeTask中存储的每个节点的任务情况
 	//	g_TaskStartBlockNum = g_TaskStartBlockNum + EREASURE_N - EREASURE_K;//增加块号+6
+                weightFile = fopen("weightFeedback.log","a+");
+                assert(weightFile!=NULL);
+		for(i=0;i<nodeNum-1;i++)
+                {
+                       fprintf(weightFile,"%d,",g_weight[i]);
+                }
+                fprintf(weightFile,"%d\n",g_weight[i]);
+                fclose(weightFile);
 		if(DEW_DEBUG==1)
 		{
 			for(i=0;i<nodeNum;i++)

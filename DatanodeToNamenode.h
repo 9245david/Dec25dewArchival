@@ -19,6 +19,7 @@ int32_t TaskRecvFinished(char * localIPaddress);
 void * ProcessTime(void * taskTime);
 void ProcessTask(char *recvTaskBuff,int64_t recv);//将任务抛给任务处理模块
 int32_t RecvTaskOfBlockNum(int32_t taskNum, char * recvBuff);//根据接受的任务缓存得到任务数据块数目
+int32_t RecvTaskOfNetBlockNum(int32_t taskNum, char * recvBuff);//根据接受的任务缓存得到网络任务数据块数目
 int32_t run_plan = 1;
 int32_t AVAILABLE = 0;
 #ifndef DEW_DEBUG

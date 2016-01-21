@@ -62,6 +62,8 @@ extern int32_t g_finished_task;
 extern int32_t g_unfinished_task;
 extern int32_t g_finished_block;
 extern int32_t g_unfinished_block;
+extern int32_t g_finished_net;
+extern int32_t g_unfinished_net;
 extern struct timeval g_taskDoingtime;
 extern pthread_mutex_t g_finished_task_lock;
 extern int32_t g_recv_end ;
@@ -291,8 +293,8 @@ void * ProcessChunkTask(void* argv)
 	pthread_mutex_lock(&g_finished_task_lock);
 	g_finished_task++;
 	g_unfinished_task--;
-    g_finished_block = g_finished_block + localNum + pChunkTask->waitForBlock + pChunkTask->destIPNum; 
-	g_unfinished_block = g_unfinished_block - (localNum + pChunkTask->waitForBlock + pChunkTask->destIPNum);
+  //  g_finished_block = g_finished_block + localNum + pChunkTask->waitForBlock + pChunkTask->destIPNum; 
+//	g_unfinished_block = g_unfinished_block - (localNum + pChunkTask->waitForBlock + pChunkTask->destIPNum);
 	if(g_unfinished_task <= 0)gettimeofday(&g_taskDoingtime,NULL);//任务完成以及最后一次发送feedback
 	pthread_mutex_unlock(&g_finished_task_lock);
         if(DEW_DEBUG >5)fprintf(stderr,"pchunktask finished\n");
@@ -761,6 +763,12 @@ void *handle_request(void * arg)
 			assert(res ==0);
 			usleep(10000);
 		}
+	pthread_mutex_lock(&g_finished_task_lock);
+    g_finished_block ++;
+	g_unfinished_block --;
+        g_finished_net ++;
+        g_unfinished_net --;
+	pthread_mutex_unlock(&g_finished_task_lock);
 
 	}
 	return NULL;
@@ -795,6 +803,12 @@ void *SendData(void*arg)//只是发送缓存，发送数据，发送完成之后
 				usleep(10000);
 				piceNum --;
 			}
+	pthread_mutex_lock(&g_finished_task_lock);
+    g_finished_block ++;
+	g_unfinished_block --;
+        g_finished_net ++;
+        g_unfinished_net --;
+	pthread_mutex_unlock(&g_finished_task_lock);
 	pthread_exit(0);
 	//return NULL;
 	}
@@ -835,6 +849,10 @@ void *ReadLocalData(void * arg)
 		assert(res ==0);
 		usleep(10000);
 	}
+	pthread_mutex_lock(&g_finished_task_lock);
+    g_finished_block ++;
+	g_unfinished_block --;
+	pthread_mutex_unlock(&g_finished_task_lock);
 	//可选择在这里循环判断长度是否为0,为0就回收本地内存给链表,SendBackMemory调用函数即可，重复了
 //	while(pBuffPice->length !=0)NULL;
 //	tmpMemory = (pMemory)malloc(sizeof(nMemory));

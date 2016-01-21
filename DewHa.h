@@ -18,6 +18,7 @@
 #define RACK_NODE 3 //机架节点数,同时也是冗余码的K
 #define RACK_NUM 3 //机架数,同时也是副本数
 
+#define BLOCK_NET 1 //为1表示采用网络方式，为0表示调度采用所有块
 #ifndef DATANODE_NUMBER
 #define DATANODE_NUMBER 9
 #endif

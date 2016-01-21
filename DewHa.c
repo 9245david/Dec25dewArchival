@@ -469,7 +469,7 @@ list_head *get_weight_strp_lay(list_head* strp_lay_head,int32_t * weight)
 			tmp_node_strp_block->blk_nodeID = nodeID;
 			node_weight_tmp--;
 			//权益之计
-			node_weight_tmp--;
+		       if(BLOCK_NET != 1)node_weight_tmp--;
 			
 			
 			block_exist[(block_id-1)%(EREASURE_N-EREASURE_K)] = 1;
