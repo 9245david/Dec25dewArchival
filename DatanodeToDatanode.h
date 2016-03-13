@@ -75,5 +75,5 @@ int32_t handle_connect(int32_t listen_sock);//返回0正常，返回其他值，
 void *handle_request(void * arg);
 off_t FindBlockOffset(int32_t localBlock);
 uint64_t ReadDisk(off_t offset, char * buff, uint64_t length);
-
+int ApplyControl(char * destIP);
 #endif /* DATANODETODATANODE_H_ */

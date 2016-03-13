@@ -22,6 +22,7 @@ int32_t RecvTaskOfBlockNum(int32_t taskNum, char * recvBuff);//根据接受的�
 int32_t RecvTaskOfNetBlockNum(int32_t taskNum, char * recvBuff);//根据接受的任务缓存得到网络任务数据块数目
 int32_t run_plan = 1;
 int32_t AVAILABLE = 0;
+#define TIME_WINDOW 40//20 
 #ifndef DEW_DEBUG
 #define DEW_DEBUG 1
 #endif

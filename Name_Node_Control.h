@@ -87,8 +87,8 @@ typedef struct TaskHead{
 							//值为0表示正常的任务的完成情况
 }nTaskHead,*pTaskHead;
 
-#define TASK_TIME 20 //20s
-#define PAST_TIME 20 //20s
+#define TASK_TIME 40 //20s
+#define PAST_TIME 40 //20s
 //extern nFeedback g_nodeFeedback[DATANODE_NUMBER];
 //extern int g_feedbackVersion[DATANODE_NUMBER];
 //extern unsigned char g_nodeIP[DATANODE_NUMBER][IP_LENGTH];//节点号与节点i

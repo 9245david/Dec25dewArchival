@@ -439,7 +439,7 @@ void WriteTaskFeedbackLog(int32_t connfd,char *recvbuff,uint64_t length,int32_t 
 //    fprintf(logFile,"finishedornot%u,allocated%d,finished%u,finishtime%u,feedbacktime%lld\n",FeedbackDToN->finishedOrNot,FeedbackDToN->allocatedBlock,FeedbackDToN->finishedBlock,FeedbackDToN->finishedTime,recv_feedback_time.tv_sec);    
 
 
-    fprintf(logFile,"node_id %d,unfinished%d,available%.0lf,allocatedNet%d,finishedNet%d",node_id,FeedbackDToN->unfinishedBlock,FeedbackDToN->availableBandwidth,FeedbackDToN->allocatedNet,FeedbackDToN->finishedNet);   
+    fprintf(logFile,"node_id %d,unfinished%d,available%.0lf,allocatedNet%d,finishedNet%d,",node_id,FeedbackDToN->unfinishedBlock,FeedbackDToN->availableBandwidth,FeedbackDToN->allocatedNet,FeedbackDToN->finishedNet);   
     fprintf(logFile,"finishedornot%u,allocated%d,finished%u,finishtime%u,feedbacktime%lld\n",FeedbackDToN->finishedOrNot,FeedbackDToN->allocatedBlock,FeedbackDToN->finishedBlock,FeedbackDToN->finishedTime,recv_feedback_time.tv_sec);    
 
 	fflush(logFile);
@@ -500,6 +500,7 @@ void *ProvideTask(void *arg)
 				g_weight[i] = g_nodeFeedback[i].availableBandwidth * TASK_TIME / (BLOCK_SIZE/MB_SIZE);
 				g_pDatanodeTask[i].historyNotFinished = false;//默认正常任务完成情况
 				g_pDatanodeTask[i].singleStripTask = NULL;
+                                assert(g_weight[i]!=0);
 			}
 		}
 /*		else{//之后的反馈过程
@@ -564,7 +565,14 @@ void *ProvideTask(void *arg)
 							g_pDatanodeTask[i].historyNotFinished = true;
 						}
 				}
-                       // g_weight[i] = g_nodeFeedback[i].availableBandwidth * TASK_TIME / (BLOCK_SIZE/MB_SIZE);
+                        if(BLOCK_NET ==1)
+                        {
+                           if(g_weight[i]>2*g_nodeFeedback[i].availableBandwidth * TASK_TIME / (BLOCK_SIZE/MB_SIZE))
+                           {
+                               g_weight[i] = 2 * 64 * TASK_TIME / (BLOCK_SIZE/MB_SIZE);
+                           }
+                        }
+                        g_weight[i] = g_nodeFeedback[i].availableBandwidth * TASK_TIME / (BLOCK_SIZE/MB_SIZE);
 			}//for
 			}//else
 	//	ProvideTaskAlgorithm(g_weight,g_TaskStartBlockNum,g_pDatanodeTask);

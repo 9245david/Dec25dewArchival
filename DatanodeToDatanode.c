@@ -319,6 +319,8 @@ pConnect ApplyForClientConnection(pTaskBlock pChunkTask,int32_t destNum)
 	int32_t connfd=0;
 	char * destIP = pChunkTask->destIP[destNum];
 	int err = 0;
+        int connected_num =0;
+        int loop_num =0;
 	pConnect tmpConnect =NULL;
 	list_head * pSearch = NULL;
 	pTransportBlock pChunkTransport =NULL;
@@ -331,6 +333,7 @@ pConnect ApplyForClientConnection(pTaskBlock pChunkTask,int32_t destNum)
 		assert(g_pFreeClientBuffList !=NULL);
 		init_list_head(&(g_pFreeClientBuffList->listConnect));
 	}
+Loop:
 	pSearch = g_pFreeClientBuffList->listConnect.next;
 	while(pSearch != &(g_pFreeClientBuffList->listConnect))//遍历链表是否存在destIP的空连接
 	{
@@ -342,6 +345,14 @@ pConnect ApplyForClientConnection(pTaskBlock pChunkTask,int32_t destNum)
 		}
 		else pSearch = pSearch->next;
 	}
+        connected_num = ApplyControl(destIP);
+       // if((connected_num >=5)&&(loop_num++<=10))
+        if((connected_num >=3))
+        {
+            system("sleep 1");
+            goto Loop;
+        }  
+        
 	if(pSearch == &(g_pFreeClientBuffList->listConnect))
 	{
 		tmpConnect = (pConnect)malloc(sizeof(nConnect));
@@ -874,3 +885,25 @@ uint64_t ReadDisk( off_t offset, char * buff, uint64_t length)
 
 	return BUFF_PICE_SIZE;
 	}
+int ApplyControl(char * destIP)
+{
+//发起连接个数超过五个就暂停
+FILE * fp;
+char buffer[80];
+char IP[30];
+int num_srv = -1;
+int num_cli = -1;
+char thread_num[50]="netstat -natp|grep Data|egrep \"44:6781\"|wc -l";
+//printf("%s\n",thread_num);
+//printf("%c %c\n",thread_num[31],thread_num[32]);
+thread_num[31]=destIP[10];
+thread_num[32]=destIP[11];
+fp=popen(thread_num,"r");
+fgets(buffer,sizeof(buffer),fp);
+pclose(fp);
+//printf("%s",buffer);
+num_srv =atoi(buffer);
+printf("srv %s %d\n",destIP,num_srv);
+return num_srv;
+
+}

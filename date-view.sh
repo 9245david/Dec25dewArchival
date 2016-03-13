@@ -23,5 +23,10 @@ do
 done
 
 echo $string
-
+ethX=`ssh root@$IPHEAD$i "ifconfig |grep eth"|awk '{print $1}'`
+#ssh root@$IPHEAD$i "tc -s qdisc ls dev `ifconfig |grep eth|awk '{print $1}'`"
+ssh root@$IPHEAD$i "tc -s qdisc ls dev $ethX"
+echo $ethX
+#ssh root@$IPHEAD$i "reboot"
 done
+#jul 4

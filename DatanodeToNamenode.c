@@ -10,7 +10,7 @@ extern void *DataToDataTaskServer(void *arg);
 extern pthread_mutex_t g_memoryLock;
 //extern char * DtoNbuffer ;
 //extern long  DtoNlength ;
-struct timeval oneTasktime = {20,0};
+struct timeval oneTasktime = {TIME_WINDOW,0};
 char * localIPaddress;
 bool sendFeedback = false; //全局变量
 pthread_mutex_t lockFeedback;
@@ -165,7 +165,7 @@ struct sockaddr_in cliaddr;
 	FeedbackDToN->availableBandwidth = AVAILABLE;
 	FeedbackDToN->wholeBandwidth = WHOLE;
 	FeedbackDToN->finishedOrNot =1;
-	FeedbackDToN->finishedTime =20;
+	FeedbackDToN->finishedTime =TIME_WINDOW;
 	
 	FeedbackDToN->allocatedBlock = 0;
 
@@ -275,11 +275,11 @@ struct sockaddr_in cliaddr;
 		if(FeedbackDToN-> unfinishedBlock == 0)
 		{
 	    	timersub(&g_taskDoingtime, &taskStarttime, &g_taskDoingtime);//DatanodeToDatanode 获得g_taskDoingtmie
-		    FeedbackDToN->finishedTime =g_taskDoingtime.tv_sec - (g_feedback_num-1)*20;
+		    FeedbackDToN->finishedTime =g_taskDoingtime.tv_sec - (g_feedback_num-1)*TIME_WINDOW;
 		}
 		else
 		{
-			FeedbackDToN->finishedTime = 20;
+			FeedbackDToN->finishedTime = TIME_WINDOW;
 		}
 	//	if(g_finished_task >= task_length)
 		assert(g_unfinished_task>=0);
@@ -340,11 +340,11 @@ struct sockaddr_in cliaddr;
 		if(FeedbackDToN-> allocatedTask == 0)
 		{
 	    	timersub(&g_taskDoingtime, &taskStarttime, &g_taskDoingtime);//DatanodeToDatanode 获得g_taskDoingtmie
-		    FeedbackDToN->finishedTime =g_taskDoingtime.tv_sec - (g_feedback_num-1)*20;
+		    FeedbackDToN->finishedTime =g_taskDoingtime.tv_sec - (g_feedback_num-1)*TIME_WINDOW;
 		}
 		else
 		{
-			FeedbackDToN->finishedTime = 20;
+			FeedbackDToN->finishedTime = TIME_WINDOW;
 		}
                 //if(g_finished_task >= task_length)
 		if(g_unfinished_task == 0)
@@ -385,13 +385,13 @@ struct sockaddr_in cliaddr;
 		{
 		    
 	    	timersub(&g_taskDoingtime, &taskStarttime, &g_taskDoingtime);//DatanodeToDatanode 获得g_taskDoingtmie
-		    if(g_taskDoingtime.tv_sec <(g_feedback_num-1)*20)FeedbackDToN->finishedTime = 0;
-			else FeedbackDToN->finishedTime =g_taskDoingtime.tv_sec - (g_feedback_num-1)*20;
+		    if(g_taskDoingtime.tv_sec <(g_feedback_num-1)*TIME_WINDOW)FeedbackDToN->finishedTime = 0;
+			else FeedbackDToN->finishedTime =g_taskDoingtime.tv_sec - (g_feedback_num-1)*TIME_WINDOW;
 				  
 		}
 		else
 		{
-			FeedbackDToN->finishedTime = 20;
+			FeedbackDToN->finishedTime = TIME_WINDOW;
 		}
                 //if(g_finished_task >= task_length)
 		if(g_unfinished_task == 0)

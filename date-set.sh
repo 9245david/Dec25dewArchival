@@ -9,9 +9,9 @@ echo $i
 #	ssh root@$IPHEAD$i "cat /etc/timezone"
 #ssh-copy-id -i ~/.ssh/id_rsa.pub root@$IPHEAD$i
 # ssh root@$IPHEAD$i "date"
-#       ssh root@$IPHEAD$i "date -s \"2015-11-16 10:15:59\""
+   ssh root@$IPHEAD$i "date -s \"2016-03-13 11:42:11\""
 #ssh root@$IPHEAD$i "apt-get install rdate"
-ssh root@$IPHEAD$i "rdate time-b.nist.gov"
+#ssh root@$IPHEAD$i "rdate time-b.nist.gov"
 #	ssh root@$IPHEAD$i "ulimit -c unlimited" // 这条远程指令无效
 #	ssh root@$IPHEAD$i "echo 'core.%e.%p.%t' > /proc/sys/kernel/core_pattern"
 done
